@@ -57,9 +57,8 @@ export function getKyusei(birth: Date): string {
   while (sum > 9) {
     sum = sum.toString().split("").reduce((a, c) => a + parseInt(c), 0);
   }
-  let kyusei = 10 - sum;
-  if (kyusei <= 0) kyusei += 9;
-  if (kyusei > 9) kyusei -= 9;
+  let kyusei = (11 - sum) % 9;
+  if (kyusei === 0) kyusei = 9;
 
   const stars = ["","一白水星","二黒土星","三碧木星","四緑木星","五黄土星",
                  "六白金星","七赤金星","八白土星","九紫火星"];
