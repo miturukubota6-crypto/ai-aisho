@@ -7,7 +7,7 @@ function getClient() {
 
 export async function POST(req: NextRequest) {
   try {
-    const { name1, birth1, blood1, name2, birth2, blood2, category } = await req.json();
+    const { name1, birth1, blood1, gender1 = "不明", name2, birth2, blood2, gender2 = "不明", category } = await req.json();
 
     if (!name1 || !birth1 || !name2 || !birth2) {
       return NextResponse.json({ error: "必須項目が不足しています" }, { status: 400 });
@@ -23,8 +23,8 @@ export async function POST(req: NextRequest) {
     const prompt = `以下の2人の「${categoryLabel}」の相性を8占術で診断し、指定のJSON形式のみで返してください。
 
 診断対象:
-- あなた: 名前「${name1}」生年月日「${birth1}」血液型「${blood1}型」
-- 相手: 名前「${name2}」生年月日「${birth2}」血液型「${blood2}型」
+- あなた: 名前「${name1}」性別「${gender1}」生年月日「${birth1}」血液型「${blood1}型」
+- 相手: 名前「${name2}」性別「${gender2}」生年月日「${birth2}」血液型「${blood2}型」
 
 使用する8占術: 西洋占星術・四柱推命・数秘術・タロット・九星気学・血液型性格診断・姓名判断・カバラ数秘術
 

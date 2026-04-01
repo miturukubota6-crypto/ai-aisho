@@ -27,13 +27,17 @@ interface FortuneResult {
   timingAdvice: string;
 }
 
+const GENDERS = ["女性", "男性", "その他"] as const;
+
 interface FormState {
   name1: string;
   birth1: string;
   blood1: string;
+  gender1: string;
   name2: string;
   birth2: string;
   blood2: string;
+  gender2: string;
   category: Category;
 }
 
@@ -94,8 +98,8 @@ function FortuneCard({ fortune }: { fortune: FortuneScore }) {
 
 export default function Home() {
   const [form, setForm] = useState<FormState>({
-    name1: "", birth1: "", blood1: "A",
-    name2: "", birth2: "", blood2: "A",
+    name1: "", birth1: "2000-01-01", blood1: "A", gender1: "女性",
+    name2: "", birth2: "2000-01-01", blood2: "A", gender2: "男性",
     category: "恋愛",
   });
   const [step, setStep] = useState<"form" | "result">("form");
@@ -169,13 +173,19 @@ export default function Home() {
                 <input type="text" placeholder="名前 *" value={form.name1}
                   onChange={e => update("name1", e.target.value)}
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-300 text-gray-900" />
+                <div className="flex gap-2">
+                  <select value={form.gender1} onChange={e => update("gender1", e.target.value)}
+                    className="flex-1 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-300 text-gray-900 bg-white">
+                    {GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                  <select value={form.blood1} onChange={e => update("blood1", e.target.value)}
+                    className="flex-1 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-300 text-gray-900 bg-white">
+                    {BLOOD_TYPES.map(b => <option key={b} value={b}>{b}型</option>)}
+                  </select>
+                </div>
                 <input type="date" value={form.birth1}
                   onChange={e => update("birth1", e.target.value)}
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-300 text-gray-900" />
-                <select value={form.blood1} onChange={e => update("blood1", e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-300 text-gray-900 bg-white">
-                  {BLOOD_TYPES.map(b => <option key={b} value={b}>{b}型</option>)}
-                </select>
               </div>
             </div>
 
@@ -193,13 +203,19 @@ export default function Home() {
                 <input type="text" placeholder="名前 *" value={form.name2}
                   onChange={e => update("name2", e.target.value)}
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-300 text-gray-900" />
+                <div className="flex gap-2">
+                  <select value={form.gender2} onChange={e => update("gender2", e.target.value)}
+                    className="flex-1 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-300 text-gray-900 bg-white">
+                    {GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                  <select value={form.blood2} onChange={e => update("blood2", e.target.value)}
+                    className="flex-1 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-300 text-gray-900 bg-white">
+                    {BLOOD_TYPES.map(b => <option key={b} value={b}>{b}型</option>)}
+                  </select>
+                </div>
                 <input type="date" value={form.birth2}
                   onChange={e => update("birth2", e.target.value)}
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-300 text-gray-900" />
-                <select value={form.blood2} onChange={e => update("blood2", e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-300 text-gray-900 bg-white">
-                  {BLOOD_TYPES.map(b => <option key={b} value={b}>{b}型</option>)}
-                </select>
               </div>
             </div>
 
