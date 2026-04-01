@@ -20,6 +20,20 @@ export async function POST(req: NextRequest) {
       SEX: "性的相性・肉体的相性",
     }[category as string] || "恋愛";
 
+    const happyPointsInstruction = {
+      恋愛: "相手が喜ぶポイント（超具体的なシーン・行動）",
+      結婚: "結婚生活で幸せになれる具体的な場面・行動",
+      仕事: "仕事でうまく協力できる具体的な場面・行動",
+      SEX: "性的相性が高まる具体的な場面・状況",
+    }[category as string] || "相手が喜ぶポイント（超具体的なシーン・行動）";
+
+    const disappointPointsInstruction = {
+      恋愛: "相手が幻滅する具体的なNG行動",
+      結婚: "結婚生活で摩擦や不満が生まれやすい具体的な行動・状況",
+      仕事: "仕事上でぶつかりやすい具体的な場面・行動",
+      SEX: "性的相性で注意が必要な具体的な違い・状況",
+    }[category as string] || "相手が幻滅する具体的なNG行動";
+
     const prompt = `以下の2人の「${categoryLabel}」の相性を8占術で診断し、指定のJSON形式のみで返してください。
 
 診断対象:
@@ -98,14 +112,14 @@ export async function POST(req: NextRequest) {
     "<気を付けるべき点3（具体的に）>"
   ],
   "happyPoints": [
-    "<相手が喜ぶポイント1（超具体的なシーン・行動）>",
-    "<相手が喜ぶポイント2>",
-    "<相手が喜ぶポイント3>"
+    "<${happyPointsInstruction}1>",
+    "<${happyPointsInstruction}2>",
+    "<${happyPointsInstruction}3>"
   ],
   "disappointPoints": [
-    "<相手が幻滅するポイント1（具体的なNG行動）>",
-    "<相手が幻滅するポイント2>",
-    "<相手が幻滅するポイント3>"
+    "<${disappointPointsInstruction}1>",
+    "<${disappointPointsInstruction}2>",
+    "<${disappointPointsInstruction}3>"
   ],
   "timingAdvice": "<この2人にとって重要な時期・タイミング（50〜80文字）>"
 }`;

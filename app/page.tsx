@@ -29,6 +29,38 @@ interface FortuneResult {
 
 const GENDERS = ["女性", "男性", "その他"] as const;
 
+const CATEGORY_CONFIG: Record<Category, {
+  deepReadLabel: string;
+  cautionsLabel: string;
+  happyLabel: string;
+  disappointLabel: string;
+}> = {
+  恋愛: {
+    deepReadLabel: "🌙 2人の関係の深読み",
+    cautionsLabel: "⚠️ 気を付けるべき点",
+    happyLabel: "😊 相手が喜ぶポイント",
+    disappointLabel: "💔 相手が幻滅するポイント",
+  },
+  結婚: {
+    deepReadLabel: "🌙 結婚生活の深読み",
+    cautionsLabel: "⚠️ 結婚生活で注意すべき点",
+    happyLabel: "😊 結婚生活で幸せになれる場面",
+    disappointLabel: "💔 結婚生活で摩擦が生まれやすい場面",
+  },
+  仕事: {
+    deepReadLabel: "🌙 仕事上の相性の深読み",
+    cautionsLabel: "⚠️ 仕事上で注意すべき点",
+    happyLabel: "😊 仕事でうまく協力できる場面",
+    disappointLabel: "💔 仕事上でぶつかりやすい点",
+  },
+  SEX: {
+    deepReadLabel: "🌙 2人の深い相性の読み解き",
+    cautionsLabel: "⚠️ 気を付けるべき点",
+    happyLabel: "😊 相性が高まる場面",
+    disappointLabel: "💔 注意が必要な相性の違い",
+  },
+};
+
 interface FormState {
   name1: string;
   birth1: string;
@@ -134,6 +166,7 @@ export default function Home() {
   };
 
   const score = result?.score ?? result?.totalScore ?? 0;
+  const catConfig = CATEGORY_CONFIG[form.category];
   const shareText = `💕 ${form.name1}×${form.name2}の${form.category}相性は${score}点！\n${result?.oneliner ?? ""}\nAIが8占術で本気診断しました✨`;
 
   return (
@@ -268,7 +301,7 @@ export default function Home() {
 
             {/* 深読み */}
             <div className="bg-white rounded-3xl shadow-xl p-5">
-              <h3 className="font-black text-gray-700 mb-3 text-sm">🌙 2人の関係の深読み</h3>
+              <h3 className="font-black text-gray-700 mb-3 text-sm">{catConfig.deepReadLabel}</h3>
               <p className="text-sm text-gray-600 leading-relaxed bg-gradient-to-br from-pink-50 to-purple-50 rounded-2xl p-4">
                 {result.deepRead}
               </p>
@@ -279,7 +312,7 @@ export default function Home() {
 
               <div>
                 <h3 className="font-black text-gray-700 mb-3 text-sm flex items-center gap-1">
-                  ⚠️ 気を付けるべき点
+                  {catConfig.cautionsLabel}
                 </h3>
                 <div className="space-y-2">
                   {result.cautions?.map((c, i) => (
@@ -293,7 +326,7 @@ export default function Home() {
 
               <div>
                 <h3 className="font-black text-gray-700 mb-3 text-sm flex items-center gap-1">
-                  😊 相手が喜ぶポイント
+                  {catConfig.happyLabel}
                 </h3>
                 <div className="space-y-2">
                   {result.happyPoints?.map((h, i) => (
@@ -307,7 +340,7 @@ export default function Home() {
 
               <div>
                 <h3 className="font-black text-gray-700 mb-3 text-sm flex items-center gap-1">
-                  💔 相手が幻滅するポイント
+                  {catConfig.disappointLabel}
                 </h3>
                 <div className="space-y-2">
                   {result.disappointPoints?.map((d, i) => (
