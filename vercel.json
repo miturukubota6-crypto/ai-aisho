@@ -1,0 +1,12 @@
+{
+  "functions": {
+    "app/api/fortune/route.ts": { "maxDuration": 60 },
+    "app/api/line-webhook/route.ts": { "maxDuration": 60 }
+  },
+  "crons": [
+    {
+      "path": "/api/daily-post?secret=REPLACE_WITH_YOUR_CRON_SECRET",
+      "schedule": "0 8 * * *"
+    }
+  ]
+}
