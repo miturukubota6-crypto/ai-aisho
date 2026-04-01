@@ -1,9 +1,16 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
-const supabaseUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+// 環境変数が未設定でもクラッシュしないように遅延初期化
+let _client: SupabaseClient | null = null;
 
-export const supabase = createClient(supabaseUrl, supabaseAnon);
+function getClient(): SupabaseClient | null {
+  if (_client) return _client;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) return null;
+  _client = createClient(url, key);
+  return _client;
+}
 
 export interface FortuneRecord {
   id?: string;
@@ -19,11 +26,13 @@ export interface FortuneRecord {
   category: string;
   score: number;
   oneliner: string;
-  result_json: string; // JSON.stringify(result)
+  result_json: string;
 }
 
 export async function saveFortuneResult(record: Omit<FortuneRecord, "id" | "created_at">) {
-  const { data, error } = await supabase
+  const client = getClient();
+  if (!client) return null;
+  const { data, error } = await client
     .from("fortune_results")
     .insert(record)
     .select("id")
@@ -32,12 +41,14 @@ export async function saveFortuneResult(record: Omit<FortuneRecord, "id" | "crea
   return data;
 }
 
-export async function getRecentResults(limit = 10): Promise<FortuneRecord[]> {
-  const { data, error } = await supabase
+export async function getRecentResults(limit = 20): Promise<FortuneRecord[]> {
+  const client = getClient();
+  if (!client) return [];
+  const { data, error } = await client
     .from("fortune_results")
     .select("*")
     .order("created_at", { ascending: false })
     .limit(limit);
-  if (error) throw error;
+  if (error) return [];
   return data ?? [];
 }
