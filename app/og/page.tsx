@@ -2,8 +2,6 @@ import { Metadata } from "next";
 
 interface Props {
   searchParams: Promise<{
-    name1?: string;
-    name2?: string;
     score?: string;
     category?: string;
     oneliner?: string;
@@ -12,16 +10,14 @@ interface Props {
 
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
   const params = await searchParams;
-  const name1    = params.name1    || "？";
-  const name2    = params.name2    || "？";
   const score    = params.score    || "0";
   const category = params.category || "恋愛";
   const oneliner = params.oneliner || "";
 
-  const title = `${name1}×${name2}の${category}相性は${score}点！`;
-  const description = oneliner || `AIが8占術で${name1}と${name2}の${category}相性を本気診断しました。`;
+  const title = `${category}相性診断の結果は${score}点！`;
+  const description = oneliner || `AIが8占術で${category}の相性を本気診断しました。`;
 
-  const ogImageUrl = `/api/og?name1=${encodeURIComponent(name1)}&name2=${encodeURIComponent(name2)}&score=${score}&category=${encodeURIComponent(category)}&oneliner=${encodeURIComponent(oneliner)}`;
+  const ogImageUrl = `/api/og?score=${score}&category=${encodeURIComponent(category)}&oneliner=${encodeURIComponent(oneliner)}`;
 
   return {
     title,
@@ -43,8 +39,6 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 
 export default async function OgPage({ searchParams }: Props) {
   const params = await searchParams;
-  const name1    = params.name1    || "？";
-  const name2    = params.name2    || "？";
   const score    = params.score    || "0";
   const category = params.category || "恋愛";
   const oneliner = params.oneliner || "";
@@ -60,7 +54,7 @@ export default async function OgPage({ searchParams }: Props) {
         <p className="text-gray-500 text-sm mb-6">Claude AIが8占術で本気診断</p>
 
         <div className="bg-white rounded-3xl shadow-xl p-8">
-          <p className="text-gray-500 text-sm mb-2">{name1} × {name2} の{category}相性</p>
+          <p className="text-gray-500 text-sm mb-2">{category}相性診断の結果</p>
           <div className="text-7xl font-black bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">
             {score}<span className="text-4xl">点</span>
           </div>
@@ -77,7 +71,7 @@ export default async function OgPage({ searchParams }: Props) {
 
         <a href="/"
           className="mt-6 inline-block bg-gradient-to-r from-pink-500 to-purple-600 text-white px-8 py-4 rounded-2xl font-black text-lg hover:opacity-90 transition-all shadow-lg">
-          🔮 自分も占ってみる
+          🔮 自分も診断してみる
         </a>
 
         <p className="text-center text-xs text-gray-400 mt-6">

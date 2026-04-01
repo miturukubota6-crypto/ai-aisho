@@ -2,7 +2,18 @@
 
 import { useState, useEffect } from "react";
 import { Heart, Share2, RotateCcw, ChevronDown, ChevronUp, History, X } from "lucide-react";
-import { saveFortuneResult, getRecentResults, type FortuneRecord } from "@/lib/supabase";
+import { saveFortuneResult, type FortuneRecord } from "@/lib/supabase";
+
+// ── localStorage ベースの履歴管理（会員登録不要・端末ごとに保存）──
+const LS_KEY = "fortune_history_v1";
+function lsLoad(): FortuneRecord[] {
+  if (typeof window === "undefined") return [];
+  try { return JSON.parse(localStorage.getItem(LS_KEY) || "[]"); } catch { return []; }
+}
+function lsSave(record: FortuneRecord) {
+  const list = [record, ...lsLoad()].slice(0, 30);
+  try { localStorage.setItem(LS_KEY, JSON.stringify(list)); } catch {}
+}
 
 const BLOOD_TYPES = ["A", "B", "O", "AB", "不明"];
 const CATEGORIES = ["恋愛", "結婚", "仕事", "SEX"] as const;
@@ -145,10 +156,15 @@ function CrystalBallLoader() {
           0%, 100% { transform: translateY(0px); }
           50%       { transform: translateY(-10px); }
         }
-        @keyframes cb-wave {
-          0%   { transform: rotate(-25deg) translateX(-8px); }
-          50%  { transform: rotate(15deg)  translateX(8px);  }
-          100% { transform: rotate(-25deg) translateX(-8px); }
+        @keyframes cb-wave-l {
+          0%   { transform: rotate(-30deg) translateY(0px); }
+          50%  { transform: rotate(5deg)   translateY(-12px); }
+          100% { transform: rotate(-30deg) translateY(0px); }
+        }
+        @keyframes cb-wave-r {
+          0%   { transform: rotate(30deg)  translateY(-8px); }
+          50%  { transform: rotate(-5deg)  translateY(4px); }
+          100% { transform: rotate(30deg)  translateY(-8px); }
         }
       `}</style>
       <div style={{
@@ -157,14 +173,23 @@ function CrystalBallLoader() {
         backdropFilter: "blur(4px)",
         display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
       }}>
-        <div style={{ position: "relative", width: 180, height: 230 }}>
+        <div style={{ position: "relative", width: 260, height: 230 }}>
+          {/* 左手 */}
           <div style={{
-            position: "absolute", top: 0, left: "50%",
-            transform: "translateX(-50%)",
-            animation: "cb-wave 1.8s ease-in-out infinite",
-            transformOrigin: "bottom center",
-            fontSize: 64, lineHeight: 1, userSelect: "none",
-          }}>🤲</div>
+            position: "absolute", top: 20, left: 0,
+            animation: "cb-wave-l 2s ease-in-out infinite",
+            transformOrigin: "bottom right",
+            fontSize: 56, lineHeight: 1, userSelect: "none",
+          }}>🖐️</div>
+          {/* 右手 */}
+          <div style={{
+            position: "absolute", top: 20, right: 0,
+            animation: "cb-wave-r 2.3s ease-in-out infinite 0.4s",
+            transformOrigin: "bottom left",
+            fontSize: 56, lineHeight: 1, userSelect: "none",
+            transform: "scaleX(-1)",
+          }}>🖐️</div>
+          {/* 水晶玉（中央） */}
           <div style={{
             position: "absolute", bottom: 0, left: "50%",
             transform: "translateX(-50%)",
@@ -309,9 +334,9 @@ export default function Home() {
   const [history, setHistory] = useState<FortuneRecord[]>([]);
   const [showHistory, setShowHistory] = useState(false);
 
-  // 履歴を取得
+  // 履歴をlocalStorageから取得（端末ごと・会員登録不要）
   useEffect(() => {
-    getRecentResults(20).then(setHistory).catch(() => {/* Supabase未設定時は無視 */});
+    setHistory(lsLoad());
   }, []);
 
   const update = (k: keyof FormState, v: string) => setForm(p => ({ ...p, [k]: v }));
@@ -333,15 +358,20 @@ export default function Home() {
       if (!res.ok) throw new Error(data.error);
       setResult(data);
       setStep("result");
-      // Supabaseに保存（失敗しても続行）
-      saveFortuneResult({
+      // localStorageに保存
+      const record: FortuneRecord = {
         name1: form.name1, birth1: form.birth1, gender1: form.gender1, blood1: form.blood1,
         name2: form.name2, birth2: form.birth2, gender2: form.gender2, blood2: form.blood2,
         category: form.category,
         score: data.score ?? data.totalScore ?? 0,
         oneliner: data.oneliner ?? "",
         result_json: JSON.stringify(data),
-      }).then(() => getRecentResults(20).then(setHistory)).catch(() => {});
+        created_at: new Date().toISOString(),
+      };
+      lsSave(record);
+      setHistory(lsLoad());
+      // Supabaseにも保存（管理用・失敗しても続行）
+      saveFortuneResult(record).catch(() => {});
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "エラーが発生しました");
     } finally {
@@ -352,11 +382,11 @@ export default function Home() {
   const score = result?.score ?? result?.totalScore ?? 0;
   const catConfig = CATEGORY_CONFIG[form.category];
 
-  // OGページへのURL（SNSシェア用）
+  // OGページへのURL（名前を含まない・プライバシー配慮）
   const ogPageUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/og?name1=${encodeURIComponent(form.name1)}&name2=${encodeURIComponent(form.name2)}&score=${score}&category=${encodeURIComponent(form.category)}&oneliner=${encodeURIComponent(result?.oneliner ?? "")}`
+    ? `${window.location.origin}/og?score=${score}&category=${encodeURIComponent(form.category)}&oneliner=${encodeURIComponent(result?.oneliner ?? "")}`
     : "";
-  const shareText = `💕 ${form.name1}×${form.name2}の${form.category}相性は${score}点！\n${result?.oneliner ?? ""}\n✨AIが8占術で本気診断`;
+  const shareText = `🔮 ${form.category}相性診断の結果は${score}点！\n${result?.oneliner ?? ""}\n✨AIが8占術で本気診断`;
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50 flex items-start justify-center p-3 sm:p-4 sm:items-center">

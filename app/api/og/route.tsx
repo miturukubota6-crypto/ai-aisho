@@ -4,8 +4,6 @@ export const runtime = "edge";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const name1    = searchParams.get("name1")    || "？";
-  const name2    = searchParams.get("name2")    || "？";
   const score    = searchParams.get("score")    || "0";
   const category = searchParams.get("category") || "恋愛";
   const oneliner = searchParams.get("oneliner") || "";
@@ -30,18 +28,12 @@ export async function GET(request: Request) {
         }}
       >
         {/* 背景装飾 */}
-        <div style={{
-          position: "absolute", top: 40, right: 60,
-          fontSize: 120, opacity: 0.12,
-        }}>🔮</div>
-        <div style={{
-          position: "absolute", bottom: 40, left: 60,
-          fontSize: 80, opacity: 0.1,
-        }}>✨</div>
+        <div style={{ position: "absolute", top: 40, right: 60, fontSize: 120, opacity: 0.12 }}>🔮</div>
+        <div style={{ position: "absolute", bottom: 40, left: 60, fontSize: 80, opacity: 0.1 }}>✨</div>
 
         {/* アプリ名 */}
         <div style={{
-          fontSize: 28, fontWeight: 700,
+          fontSize: 32, fontWeight: 700,
           background: "linear-gradient(90deg, #ec4899, #9333ea)",
           backgroundClip: "text",
           color: "transparent",
@@ -59,50 +51,22 @@ export async function GET(request: Request) {
           padding: "6px 24px",
           fontSize: 22,
           fontWeight: 700,
-          marginBottom: 30,
+          marginBottom: 40,
         }}>
           {category}相性診断
         </div>
 
-        {/* 名前 */}
-        <div style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 24,
-          marginBottom: 30,
-        }}>
-          <div style={{
-            background: "white",
-            borderRadius: 20,
-            padding: "12px 28px",
-            fontSize: 36,
-            fontWeight: 900,
-            color: "#db2777",
-            boxShadow: "0 4px 20px rgba(236,72,153,0.2)",
-          }}>{name1}</div>
-          <div style={{ fontSize: 32, color: "#9ca3af" }}>×</div>
-          <div style={{
-            background: "white",
-            borderRadius: 20,
-            padding: "12px 28px",
-            fontSize: 36,
-            fontWeight: 900,
-            color: "#9333ea",
-            boxShadow: "0 4px 20px rgba(147,51,234,0.2)",
-          }}>{name2}</div>
-        </div>
-
         {/* スコア */}
         <div style={{
-          fontSize: 130,
+          fontSize: 150,
           fontWeight: 900,
           lineHeight: 1,
-          background: `linear-gradient(90deg, #ec4899, #9333ea)`,
+          background: "linear-gradient(90deg, #ec4899, #9333ea)",
           backgroundClip: "text",
           color: "transparent",
         }}>
           {score}
-          <span style={{ fontSize: 54, color: "#6b7280", background: "none" }}>点</span>
+          <span style={{ fontSize: 60, color: "#6b7280", background: "none" }}>点</span>
         </div>
 
         {/* スコアバー */}
@@ -110,7 +74,7 @@ export async function GET(request: Request) {
           width: 500, height: 16,
           background: "#e5e7eb",
           borderRadius: 999,
-          marginTop: 20,
+          marginTop: 24,
           overflow: "hidden",
         }}>
           <div style={{
@@ -124,8 +88,8 @@ export async function GET(request: Request) {
         {/* ワンライナー */}
         {oneliner && (
           <div style={{
-            marginTop: 24,
-            fontSize: 22,
+            marginTop: 28,
+            fontSize: 24,
             color: "#4b5563",
             fontWeight: 600,
             textAlign: "center",
@@ -135,19 +99,11 @@ export async function GET(request: Request) {
         )}
 
         {/* フッター */}
-        <div style={{
-          position: "absolute",
-          bottom: 30,
-          fontSize: 18,
-          color: "#9ca3af",
-        }}>
+        <div style={{ position: "absolute", bottom: 30, fontSize: 18, color: "#9ca3af" }}>
           Claude AIが8占術で本気診断
         </div>
       </div>
     ),
-    {
-      width: 1200,
-      height: 630,
-    }
+    { width: 1200, height: 630 }
   );
 }
