@@ -48,7 +48,7 @@ export async function GET(request: Request) {
           marginBottom: 20,
           letterSpacing: "0.05em",
         }}>
-          🔮 AI相性占い
+          🔮 超！相性診断
         </div>
 
         {/* カテゴリバッジ */}

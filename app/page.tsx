@@ -164,7 +164,7 @@ function CrystalBallLoader() {
             animation: "cb-wave 1.8s ease-in-out infinite",
             transformOrigin: "bottom center",
             fontSize: 64, lineHeight: 1, userSelect: "none",
-          }}>🖐️</div>
+          }}>🤲</div>
           <div style={{
             position: "absolute", bottom: 0, left: "50%",
             transform: "translateX(-50%)",
@@ -429,7 +429,7 @@ export default function Home() {
           </div>
           <div className="text-5xl mb-2">🔮</div>
           <h1 className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">
-            AI相性占い
+            超！相性診断
           </h1>
           <p className="text-gray-500 mt-1 text-xs sm:text-sm">Claude AIが8占術で本気診断｜1回500円</p>
           {/* カテゴリ表示 */}
@@ -488,7 +488,7 @@ export default function Home() {
               ※ テスト版のため現在無料。正式版はPay.jpで500円の決済が入ります。
             </p>
 
-            <button onClick={handleFortune} disabled={loading}
+            <button type="button" onClick={handleFortune} disabled={loading}
               style={{ WebkitTapHighlightColor: "transparent", fontSize: 18 }}
               className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-4 sm:py-5 rounded-2xl font-black hover:opacity-90 active:scale-95 transition-all shadow-lg disabled:opacity-50 flex items-center justify-center gap-2">
               🔮 {form.category}相性を今すぐ診断する（500円）

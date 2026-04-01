@@ -55,7 +55,7 @@ export default async function OgPage({ searchParams }: Props) {
       <div className="max-w-lg w-full text-center">
         <div className="text-5xl mb-3">🔮</div>
         <h1 className="text-3xl font-black bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent mb-2">
-          AI相性占い
+          超！相性診断
         </h1>
         <p className="text-gray-500 text-sm mb-6">Claude AIが8占術で本気診断</p>
 
