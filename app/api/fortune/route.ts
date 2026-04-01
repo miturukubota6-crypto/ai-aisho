@@ -52,6 +52,8 @@ export async function POST(req: NextRequest) {
       "name": "西洋占星術",
       "emoji": "⭐",
       "score": <0〜100の整数>,
+      "person1Trait": "<${name1}の西洋占星術的な性格特徴（15〜25文字）>",
+      "person2Trait": "<${name2}の西洋占星術的な性格特徴（15〜25文字）>",
       "compatible": "<合う理由を1〜2文で具体的に>",
       "incompatible": "<合わない・注意すべき点を1〜2文で具体的に>"
     },
@@ -59,6 +61,8 @@ export async function POST(req: NextRequest) {
       "name": "四柱推命",
       "emoji": "🐉",
       "score": <0〜100の整数>,
+      "person1Trait": "<${name1}の四柱推命から見た特徴（15〜25文字）>",
+      "person2Trait": "<${name2}の四柱推命から見た特徴（15〜25文字）>",
       "compatible": "<合う理由>",
       "incompatible": "<合わない・注意点>"
     },
@@ -66,6 +70,8 @@ export async function POST(req: NextRequest) {
       "name": "数秘術",
       "emoji": "🔢",
       "score": <0〜100の整数>,
+      "person1Trait": "<${name1}の数秘術から見た特徴（15〜25文字）>",
+      "person2Trait": "<${name2}の数秘術から見た特徴（15〜25文字）>",
       "compatible": "<合う理由>",
       "incompatible": "<合わない・注意点>"
     },
@@ -73,6 +79,8 @@ export async function POST(req: NextRequest) {
       "name": "タロット",
       "emoji": "🎴",
       "score": <0〜100の整数>,
+      "person1Trait": "<${name1}を象徴するタロットカードと意味（15〜25文字）>",
+      "person2Trait": "<${name2}を象徴するタロットカードと意味（15〜25文字）>",
       "compatible": "<引いたカード名と合う象徴>",
       "incompatible": "<課題を示す側面>"
     },
@@ -80,6 +88,8 @@ export async function POST(req: NextRequest) {
       "name": "九星気学",
       "emoji": "🌺",
       "score": <0〜100の整数>,
+      "person1Trait": "<${name1}の九星気学から見た特徴（15〜25文字）>",
+      "person2Trait": "<${name2}の九星気学から見た特徴（15〜25文字）>",
       "compatible": "<合う理由>",
       "incompatible": "<合わない・注意点>"
     },
@@ -87,6 +97,8 @@ export async function POST(req: NextRequest) {
       "name": "血液型",
       "emoji": "🩸",
       "score": <0〜100の整数>,
+      "person1Trait": "<${name1}の血液型から見た性格特徴（15〜25文字）>",
+      "person2Trait": "<${name2}の血液型から見た性格特徴（15〜25文字）>",
       "compatible": "<合う理由>",
       "incompatible": "<合わない・注意点>"
     },
@@ -94,6 +106,8 @@ export async function POST(req: NextRequest) {
       "name": "姓名判断",
       "emoji": "📝",
       "score": <0〜100の整数>,
+      "person1Trait": "<${name1}の姓名判断から見た運勢・特徴（15〜25文字）>",
+      "person2Trait": "<${name2}の姓名判断から見た運勢・特徴（15〜25文字）>",
       "compatible": "<合う理由>",
       "incompatible": "<合わない・注意点>"
     },
@@ -101,6 +115,8 @@ export async function POST(req: NextRequest) {
       "name": "カバラ数秘術",
       "emoji": "✡️",
       "score": <0〜100の整数>,
+      "person1Trait": "<${name1}のカバラ数秘術から見た特徴（15〜25文字）>",
+      "person2Trait": "<${name2}のカバラ数秘術から見た特徴（15〜25文字）>",
       "compatible": "<合う理由>",
       "incompatible": "<合わない・注意点>"
     }
@@ -127,7 +143,7 @@ export async function POST(req: NextRequest) {
     const client = getClient();
     const message = await client.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 3000,
+      max_tokens: 4000,
       system: "あなたはJSONのみを出力するAPIです。いかなる場合も、純粋なJSONオブジェクトのみを返してください。説明文・マークダウン・コードブロック(```json等)・改行コメント等は一切含めないでください。最初の文字は必ず { で始まり、最後の文字は } で終わること。",
       messages: [{ role: "user", content: prompt }],
     });

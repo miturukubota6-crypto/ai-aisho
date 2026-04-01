@@ -11,6 +11,8 @@ interface FortuneScore {
   name: string;
   emoji: string;
   score: number;
+  person1Trait?: string;
+  person2Trait?: string;
   compatible: string;
   incompatible: string;
 }
@@ -283,6 +285,43 @@ export default function Home() {
               <div className="mt-4 h-4 bg-gray-100 rounded-full overflow-hidden">
                 <div className="h-full bg-gradient-to-r from-pink-400 to-purple-500 rounded-full transition-all duration-700"
                   style={{ width: `${score}%` }} />
+              </div>
+            </div>
+
+            {/* 8占術 ふたりの特徴 左右比較 */}
+            <div className="bg-white rounded-3xl shadow-xl p-5">
+              <h3 className="font-black text-gray-700 mb-4 text-sm">🔍 8占術で見るふたりの特徴</h3>
+              {/* 名前ヘッダー */}
+              <div className="flex items-center mb-3">
+                <div className="flex-1 flex items-center gap-1">
+                  <span className="text-base">👤</span>
+                  <span className="text-xs font-black text-pink-500 truncate">{form.name1}</span>
+                </div>
+                <div className="w-8 flex-shrink-0" />
+                <div className="flex-1 flex items-center justify-end gap-1">
+                  <span className="text-xs font-black text-purple-500 truncate">{form.name2}</span>
+                  <span className="text-base">👤</span>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {result.fortunes?.map((f, i) => (
+                  <div key={i}>
+                    <div className="text-center text-xs font-bold text-gray-400 mb-1.5">
+                      {f.emoji} {f.name}
+                    </div>
+                    <div className="flex gap-2 items-stretch">
+                      <div className="flex-1 bg-pink-50 border border-pink-100 rounded-2xl px-3 py-2 text-xs text-gray-700 leading-relaxed text-center">
+                        {f.person1Trait ?? "—"}
+                      </div>
+                      <div className="flex items-center justify-center flex-shrink-0 w-5">
+                        <span className="text-gray-300 text-xs">⟷</span>
+                      </div>
+                      <div className="flex-1 bg-purple-50 border border-purple-100 rounded-2xl px-3 py-2 text-xs text-gray-700 leading-relaxed text-center">
+                        {f.person2Trait ?? "—"}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
