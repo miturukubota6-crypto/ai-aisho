@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { calcAll } from "@/lib/fortuneCalculators";
 
 function getClient() {
   return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
@@ -12,6 +13,12 @@ export async function POST(req: NextRequest) {
     if (!name1 || !birth1 || !name2 || !birth2) {
       return NextResponse.json({ error: "必須項目が不足しています" }, { status: 400 });
     }
+
+    // ── 事前計算（Claudeに計算させない） ──
+    const birth1Date = new Date(birth1 + "T12:00:00");
+    const birth2Date = new Date(birth2 + "T12:00:00");
+    const d1 = calcAll(birth1Date, name1);
+    const d2 = calcAll(birth2Date, name2);
 
     const categoryLabel = {
       恋愛: "恋愛・恋人関係",
@@ -34,14 +41,45 @@ export async function POST(req: NextRequest) {
       SEX: "性的相性で注意が必要な具体的な違い・状況",
     }[category as string] || "相手が幻滅する具体的なNG行動";
 
-    const prompt = `以下の2人の「${categoryLabel}」の相性を8占術で診断し、指定のJSON形式のみで返してください。
+    const prompt = `あなたは日本一の相性占い師AIです。
+【重要ルール】
+・あなた自身で生年月日からの計算（星座・干支・九星・数秘など）は絶対にしない。
+・以下に正確な計算結果を渡すので、それだけを基に8占術の解釈・総合判断だけを行ってください。
+・占術ごとの「compatible」「incompatible」は、下記の事前計算データを引用しつつ具体的に記述すること。
 
-診断対象:
-- あなた: 名前「${name1}」性別「${gender1}」生年月日「${birth1}」血液型「${blood1}型」
-- 相手: 名前「${name2}」性別「${gender2}」生年月日「${birth2}」血液型「${blood2}型」
+【あなた】名前「${name1}」性別「${gender1}」血液型「${blood1}型」
+【相手】名前「${name2}」性別「${gender2}」血液型「${blood2}型」
 
-使用する8占術: 西洋占星術・四柱推命・数秘術・タロット・九星気学・血液型性格診断・姓名判断・カバラ数秘術
+【事前計算済みデータ（必ずこれを使用）】
+● 西洋占星術（太陽星座）
+  ${name1}: ${d1.sunSign}
+  ${name2}: ${d2.sunSign}
 
+● 四柱推命（年柱・月柱干支）
+  ${name1}: 年柱 ${d1.yearPillar} / 月柱 ${d1.monthPillar}
+  ${name2}: 年柱 ${d2.yearPillar} / 月柱 ${d2.monthPillar}
+
+● 九星気学（本命星）
+  ${name1}: ${d1.kyusei}
+  ${name2}: ${d2.kyusei}
+
+● 数秘術（ライフパスナンバー）
+  ${name1}: ${d1.lifePath}
+  ${name2}: ${d2.lifePath}
+
+● カバラ数秘術（ソウルナンバー）
+  ${name1}: ${d1.soulNumber}
+  ${name2}: ${d2.soulNumber}
+
+● 運命数（デスティニーナンバー）
+  ${name1}: ${d1.destinyNumber}
+  ${name2}: ${d2.destinyNumber}
+
+● 血液型
+  ${name1}: ${blood1}型
+  ${name2}: ${blood2}型
+
+上記データを基に「${categoryLabel}」の相性を8占術で診断し、指定のJSON形式のみで返してください。
 出力するJSONの形式（このJSON構造のみを返すこと。文字列フィールド内にマークダウン記法を使わないこと）:
 
 {
@@ -52,8 +90,8 @@ export async function POST(req: NextRequest) {
       "name": "西洋占星術",
       "emoji": "⭐",
       "score": <0〜100の整数>,
-      "person1Trait": "<${name1}の西洋占星術的な性格特徴（15〜25文字）>",
-      "person2Trait": "<${name2}の西洋占星術的な性格特徴（15〜25文字）>",
+      "person1Trait": "<${name1}（${d1.sunSign}）の性格特徴（15〜25文字）>",
+      "person2Trait": "<${name2}（${d2.sunSign}）の性格特徴（15〜25文字）>",
       "compatible": "<合う理由を1〜2文で具体的に>",
       "incompatible": "<合わない・注意すべき点を1〜2文で具体的に>"
     },
@@ -61,8 +99,8 @@ export async function POST(req: NextRequest) {
       "name": "四柱推命",
       "emoji": "🐉",
       "score": <0〜100の整数>,
-      "person1Trait": "<${name1}の四柱推命から見た特徴（15〜25文字）>",
-      "person2Trait": "<${name2}の四柱推命から見た特徴（15〜25文字）>",
+      "person1Trait": "<${name1}（${d1.yearPillar}）の特徴（15〜25文字）>",
+      "person2Trait": "<${name2}（${d2.yearPillar}）の特徴（15〜25文字）>",
       "compatible": "<合う理由>",
       "incompatible": "<合わない・注意点>"
     },
@@ -70,8 +108,8 @@ export async function POST(req: NextRequest) {
       "name": "数秘術",
       "emoji": "🔢",
       "score": <0〜100の整数>,
-      "person1Trait": "<${name1}の数秘術から見た特徴（15〜25文字）>",
-      "person2Trait": "<${name2}の数秘術から見た特徴（15〜25文字）>",
+      "person1Trait": "<${name1}（ライフパス${d1.lifePath}）の特徴（15〜25文字）>",
+      "person2Trait": "<${name2}（ライフパス${d2.lifePath}）の特徴（15〜25文字）>",
       "compatible": "<合う理由>",
       "incompatible": "<合わない・注意点>"
     },
@@ -88,8 +126,8 @@ export async function POST(req: NextRequest) {
       "name": "九星気学",
       "emoji": "🌺",
       "score": <0〜100の整数>,
-      "person1Trait": "<${name1}の九星気学から見た特徴（15〜25文字）>",
-      "person2Trait": "<${name2}の九星気学から見た特徴（15〜25文字）>",
+      "person1Trait": "<${name1}（${d1.kyusei}）の特徴（15〜25文字）>",
+      "person2Trait": "<${name2}（${d2.kyusei}）の特徴（15〜25文字）>",
       "compatible": "<合う理由>",
       "incompatible": "<合わない・注意点>"
     },
@@ -115,8 +153,8 @@ export async function POST(req: NextRequest) {
       "name": "カバラ数秘術",
       "emoji": "✡️",
       "score": <0〜100の整数>,
-      "person1Trait": "<${name1}のカバラ数秘術から見た特徴（15〜25文字）>",
-      "person2Trait": "<${name2}のカバラ数秘術から見た特徴（15〜25文字）>",
+      "person1Trait": "<${name1}（ソウルナンバー${d1.soulNumber}）の特徴（15〜25文字）>",
+      "person2Trait": "<${name2}（ソウルナンバー${d2.soulNumber}）の特徴（15〜25文字）>",
       "compatible": "<合う理由>",
       "incompatible": "<合わない・注意点>"
     }
