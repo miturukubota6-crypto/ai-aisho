@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Heart, Share2, RotateCcw, ChevronDown, ChevronUp } from "lucide-react";
+import { Heart, Share2, RotateCcw, ChevronDown, ChevronUp } from "lucide-react";
 
 const BLOOD_TYPES = ["A", "B", "O", "AB", "不明"];
 const CATEGORIES = ["恋愛", "結婚", "仕事", "SEX"] as const;
@@ -73,6 +73,147 @@ interface FormState {
   blood2: string;
   gender2: string;
   category: Category;
+}
+
+// ────────────────────────────────────────────
+// 生年月日セレクター（年・月・日を同時に選択）
+// ────────────────────────────────────────────
+function DatePicker({ value, onChange, ringColor }: {
+  value: string;
+  onChange: (v: string) => void;
+  ringColor: string;
+}) {
+  const parts = value ? value.split("-") : ["2000", "01", "01"];
+  const year  = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10);
+  const day   = parseInt(parts[2], 10);
+
+  const years  = Array.from({ length: 91 }, (_, i) => 2010 - i); // 2010→1920
+  const months = Array.from({ length: 12 }, (_, i) => i + 1);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const days   = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+
+  const emit = (y: number, m: number, d: number) => {
+    const maxD = new Date(y, m, 0).getDate();
+    const clampedD = Math.min(d, maxD);
+    onChange(`${y}-${String(m).padStart(2, "0")}-${String(clampedD).padStart(2, "0")}`);
+  };
+
+  const selectClass = `border border-gray-200 rounded-xl px-2 py-3 focus:outline-none focus:ring-2 ${ringColor} text-gray-900 bg-white text-sm`;
+
+  return (
+    <div className="flex gap-1">
+      <select value={year} onChange={e => emit(Number(e.target.value), month, day)}
+        className={`flex-1 ${selectClass}`}>
+        {years.map(y => <option key={y} value={y}>{y}年</option>)}
+      </select>
+      <select value={month} onChange={e => emit(year, Number(e.target.value), day)}
+        className={`w-20 ${selectClass}`}>
+        {months.map(m => <option key={m} value={m}>{m}月</option>)}
+      </select>
+      <select value={day} onChange={e => emit(year, month, Number(e.target.value))}
+        className={`w-20 ${selectClass}`}>
+        {days.map(d => <option key={d} value={d}>{d}日</option>)}
+      </select>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────
+// 水晶玉ローディングオーバーレイ
+// ────────────────────────────────────────────
+function CrystalBallLoader() {
+  return (
+    <>
+      <style>{`
+        @keyframes cb-glow {
+          0%, 100% { filter: drop-shadow(0 0 12px rgba(168,85,247,0.7)) drop-shadow(0 0 24px rgba(236,72,153,0.4)); }
+          50%       { filter: drop-shadow(0 0 28px rgba(236,72,153,1))   drop-shadow(0 0 48px rgba(168,85,247,0.6)); }
+        }
+        @keyframes cb-shimmer {
+          0%, 100% { opacity: 0.25; }
+          50%       { opacity: 0.65; }
+        }
+        @keyframes cb-float {
+          0%, 100% { transform: translateY(0px); }
+          50%       { transform: translateY(-10px); }
+        }
+        @keyframes cb-wave {
+          0%   { transform: rotate(-25deg) translateX(-8px); }
+          50%  { transform: rotate(15deg)  translateX(8px);  }
+          100% { transform: rotate(-25deg) translateX(-8px); }
+        }
+        @keyframes cb-fog {
+          0%, 100% { opacity: 0.15; transform: scale(1);    }
+          50%       { opacity: 0.40; transform: scale(1.15); }
+        }
+      `}</style>
+      <div
+        style={{
+          position: "fixed", inset: 0, zIndex: 50,
+          background: "linear-gradient(135deg,rgba(88,28,135,0.92),rgba(157,23,77,0.88),rgba(55,48,163,0.92))",
+          backdropFilter: "blur(4px)",
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+        }}
+      >
+        {/* 水晶玉 + 手 のコンテナ */}
+        <div style={{ position: "relative", width: 180, height: 230 }}>
+
+          {/* 手（水晶玉の上でかざす） */}
+          <div style={{
+            position: "absolute", top: 0, left: "50%",
+            transform: "translateX(-50%)",
+            animation: "cb-wave 1.8s ease-in-out infinite",
+            transformOrigin: "bottom center",
+            fontSize: 64,
+            lineHeight: 1,
+            userSelect: "none",
+          }}>
+            🖐️
+          </div>
+
+          {/* 水晶玉本体（下部に配置） */}
+          <div style={{
+            position: "absolute", bottom: 0, left: "50%",
+            transform: "translateX(-50%)",
+            animation: "cb-float 3s ease-in-out infinite",
+          }}>
+            <svg width="160" height="170" viewBox="0 0 160 170" style={{ animation: "cb-glow 2.2s ease-in-out infinite" }}>
+              <defs>
+                <radialGradient id="ballGrad" cx="35%" cy="28%" r="68%">
+                  <stop offset="0%"   stopColor="#f5d0fe" stopOpacity="0.95" />
+                  <stop offset="35%"  stopColor="#c084fc" stopOpacity="0.85" />
+                  <stop offset="100%" stopColor="#3b0764" stopOpacity="0.98" />
+                </radialGradient>
+                <radialGradient id="fogGrad" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%"   stopColor="#f0abfc" stopOpacity="0.5" />
+                  <stop offset="100%" stopColor="#7c3aed" stopOpacity="0" />
+                </radialGradient>
+              </defs>
+              {/* 台座 */}
+              <ellipse cx="80" cy="158" rx="38" ry="9"  fill="#2e1065" opacity="0.7" />
+              <rect    x="62"  y="148" width="36" height="12" fill="#3b0764" rx="4" />
+              {/* 球体 */}
+              <circle cx="80" cy="75" r="68" fill="url(#ballGrad)" />
+              {/* 霧の光（点滅） */}
+              <circle cx="80" cy="75" r="52" fill="url(#fogGrad)"
+                style={{ animation: "cb-shimmer 2s ease-in-out infinite" }} />
+              {/* ハイライト */}
+              <ellipse cx="58" cy="48" rx="20" ry="13" fill="white" opacity="0.38" />
+              <ellipse cx="52" cy="42" rx="9"  ry="6"  fill="white" opacity="0.55" />
+            </svg>
+          </div>
+        </div>
+
+        <p style={{ color: "white", fontWeight: "900", fontSize: 20, marginTop: 24 }}>
+          占い中…
+        </p>
+        <p style={{ color: "#d8b4fe", fontSize: 13, marginTop: 6 }}>
+          8占術で本気診断中（約20秒）
+        </p>
+      </div>
+    </>
+  );
 }
 
 function ScoreBar({ score }: { score: number }) {
@@ -173,6 +314,9 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50 flex items-center justify-center p-4">
+      {/* 水晶玉ローディングオーバーレイ */}
+      {loading && <CrystalBallLoader />}
+
       <div className="max-w-lg w-full">
         {/* ヘッダー */}
         <div className="text-center mb-8">
@@ -180,7 +324,7 @@ export default function Home() {
           <h1 className="text-4xl font-black bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">
             AI相性占い
           </h1>
-          <p className="text-gray-500 mt-1 text-sm">Claude AIが8占術で本気診断｜1回300円</p>
+          <p className="text-gray-500 mt-1 text-sm">Claude AIが8占術で本気診断｜1回500円</p>
           <div className="flex gap-2 justify-center mt-4 flex-wrap">
             {CATEGORIES.map(c => (
               <button
@@ -218,9 +362,7 @@ export default function Home() {
                     {BLOOD_TYPES.map(b => <option key={b} value={b}>{b}型</option>)}
                   </select>
                 </div>
-                <input type="date" value={form.birth1}
-                  onChange={e => update("birth1", e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-300 text-gray-900" />
+                <DatePicker value={form.birth1} onChange={v => update("birth1", v)} ringColor="focus:ring-pink-300" />
               </div>
             </div>
 
@@ -248,25 +390,19 @@ export default function Home() {
                     {BLOOD_TYPES.map(b => <option key={b} value={b}>{b}型</option>)}
                   </select>
                 </div>
-                <input type="date" value={form.birth2}
-                  onChange={e => update("birth2", e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-300 text-gray-900" />
+                <DatePicker value={form.birth2} onChange={v => update("birth2", v)} ringColor="focus:ring-purple-300" />
               </div>
             </div>
 
             {error && <p className="text-red-500 text-sm text-center">{error}</p>}
 
             <p className="text-xs text-gray-400 text-center">
-              ※ テスト版のため現在無料。正式版はPay.jpで300円の決済が入ります。
+              ※ テスト版のため現在無料。正式版はPay.jpで500円の決済が入ります。
             </p>
 
             <button onClick={handleFortune} disabled={loading}
               className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-5 rounded-2xl text-xl font-black hover:opacity-90 transition-all shadow-lg disabled:opacity-50 flex items-center justify-center gap-2">
-              {loading ? (
-                <><Loader2 size={22} className="animate-spin" />占い中（約20秒）...</>
-              ) : (
-                <>🔮 {form.category}相性を今すぐ診断する（300円）</>
-              )}
+              🔮 {form.category}相性を今すぐ診断する（500円）
             </button>
           </div>
         )}
