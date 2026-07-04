@@ -8,17 +8,20 @@ function getClient() {
 
 export async function POST(req: NextRequest) {
   try {
-    const { name1, birth1, blood1, gender1 = "不明", name2, birth2, blood2, gender2 = "不明", category } = await req.json();
+    const { name1, birth1, time1 = "", blood1, gender1 = "不明", name2, birth2, time2 = "", blood2, gender2 = "不明", category } = await req.json();
 
     if (!name1 || !birth1 || !name2 || !birth2) {
       return NextResponse.json({ error: "必須項目が不足しています" }, { status: 400 });
     }
 
     // ── 事前計算（Claudeに計算させない） ──
-    const birth1Date = new Date(birth1 + "T12:00:00");
-    const birth2Date = new Date(birth2 + "T12:00:00");
-    const d1 = calcAll(birth1Date, name1);
-    const d2 = calcAll(birth2Date, name2);
+    // 出生時刻（HH:mm）は任意。あれば時柱の算出＋節入り・カスプの時刻判定に使う
+    const timeKnown1 = /^\d{2}:\d{2}$/.test(time1);
+    const timeKnown2 = /^\d{2}:\d{2}$/.test(time2);
+    const birth1Date = new Date(birth1 + "T" + (timeKnown1 ? time1 : "12:00") + ":00");
+    const birth2Date = new Date(birth2 + "T" + (timeKnown2 ? time2 : "12:00") + ":00");
+    const d1 = calcAll(birth1Date, name1, timeKnown1);
+    const d2 = calcAll(birth2Date, name2, timeKnown2);
     const sc = calcCompatibilityScores(d1, d2, blood1, blood2, name1, name2);
 
     const categoryLabel = {
@@ -57,9 +60,10 @@ export async function POST(req: NextRequest) {
   ${name1}: ${d1.sunSign}
   ${name2}: ${d2.sunSign}
 
-● 四柱推命（年柱・月柱干支）
-  ${name1}: 年柱 ${d1.yearPillar} / 月柱 ${d1.monthPillar}
-  ${name2}: 年柱 ${d2.yearPillar} / 月柱 ${d2.monthPillar}
+● 四柱推命
+  ※性格・相性の解釈は日柱の天干「日主」を中心に行うこと
+  ${name1}: 年柱 ${d1.yearPillar} / 月柱 ${d1.monthPillar} / 日柱 ${d1.dayPillar}（日主：${d1.dayPillar[0]}）${d1.hourPillar ? ` / 時柱 ${d1.hourPillar}` : "（出生時刻不明のため時柱省略）"}
+  ${name2}: 年柱 ${d2.yearPillar} / 月柱 ${d2.monthPillar} / 日柱 ${d2.dayPillar}（日主：${d2.dayPillar[0]}）${d2.hourPillar ? ` / 時柱 ${d2.hourPillar}` : "（出生時刻不明のため時柱省略）"}
 
 ● 九星気学（本命星）
   ${name1}: ${d1.kyusei}
@@ -106,8 +110,8 @@ totalScore: ${sc.total}
       "name": "四柱推命",
       "emoji": "🐉",
       "score": ${sc.fourPillars},
-      "person1Trait": "<${name1}（${d1.yearPillar}）の特徴（15〜25文字）>",
-      "person2Trait": "<${name2}（${d2.yearPillar}）の特徴（15〜25文字）>",
+      "person1Trait": "<${name1}（日柱${d1.dayPillar}）の特徴（15〜25文字）>",
+      "person2Trait": "<${name2}（日柱${d2.dayPillar}）の特徴（15〜25文字）>",
       "compatible": "<合う理由>",
       "incompatible": "<合わない・注意点>"
     },

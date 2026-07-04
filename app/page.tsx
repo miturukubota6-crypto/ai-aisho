@@ -78,10 +78,12 @@ const CATEGORY_CONFIG: Record<Category, {
 interface FormState {
   name1: string;
   birth1: string;
+  time1: string; // 出生時刻 "HH:mm"（不明なら ""）
   blood1: string;
   gender1: string;
   name2: string;
   birth2: string;
+  time2: string;
   blood2: string;
   gender2: string;
   category: Category;
@@ -131,6 +133,48 @@ function DatePicker({ value, onChange, ringColor }: {
         <select value={day} onChange={e => emit(year, month, Number(e.target.value))}
           className={`w-full ${selectClass} pr-1`}>
           {days.map(d => <option key={d} value={d}>{d}日</option>)}
+        </select>
+      </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────
+// 出生時刻セレクター（任意・不明でもOK。入力すると時柱も算出され精度UP）
+// ────────────────────────────────────────────
+function TimePicker({ value, onChange, ringColor }: {
+  value: string;
+  onChange: (v: string) => void;
+  ringColor: string;
+}) {
+  const known = /^\d{2}:\d{2}$/.test(value);
+  const hour   = known ? parseInt(value.split(":")[0], 10) : -1;
+  const minute = known ? parseInt(value.split(":")[1], 10) : 0;
+
+  const hours   = Array.from({ length: 24 }, (_, i) => i);
+  const minutes = Array.from({ length: 12 }, (_, i) => i * 5);
+
+  const emit = (h: number, m: number) => {
+    if (h < 0) { onChange(""); return; }
+    onChange(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+  };
+
+  const selectClass = `border border-gray-200 rounded-xl px-2 py-3 focus:outline-none focus:ring-2 ${ringColor} text-gray-900 bg-white text-sm appearance-none`;
+
+  return (
+    <div className="flex gap-1.5">
+      <div className="flex-1 relative">
+        <select value={hour} onChange={e => emit(Number(e.target.value), minute)}
+          className={`w-full ${selectClass} pr-1`}>
+          <option value={-1}>わからない</option>
+          {hours.map(h => <option key={h} value={h}>{h}時</option>)}
+        </select>
+      </div>
+      <div className="relative" style={{ width: "72px" }}>
+        <select value={minute} disabled={!known}
+          onChange={e => emit(hour, Number(e.target.value))}
+          className={`w-full ${selectClass} pr-1 ${!known ? "opacity-40" : ""}`}>
+          {minutes.map(m => <option key={m} value={m}>{m}分</option>)}
         </select>
       </div>
     </div>
@@ -286,12 +330,14 @@ function PersonSection({
   gender, onGender,
   blood, onBlood,
   birth, onBirth,
+  time, onTime,
 }: {
   title: string; icon: React.ReactNode; color: string; ringColor: string;
   name: string; onName: (v: string) => void;
   gender: string; onGender: (v: string) => void;
   blood: string; onBlood: (v: string) => void;
   birth: string; onBirth: (v: string) => void;
+  time: string; onTime: (v: string) => void;
 }) {
   const selectBase = `border border-gray-200 rounded-xl px-3 py-3 focus:outline-none focus:ring-2 ${ringColor} text-gray-900 bg-white text-sm w-full`;
   return (
@@ -316,6 +362,12 @@ function PersonSection({
           <p className="text-xs text-gray-400 mb-1.5 pl-1">生年月日</p>
           <DatePicker value={birth} onChange={onBirth} ringColor={ringColor} />
         </div>
+        <div>
+          <p className="text-xs text-gray-400 mb-1.5 pl-1">
+            出生時刻 <span className="text-gray-300">（任意・入力すると四柱推命の精度UP✨）</span>
+          </p>
+          <TimePicker value={time} onChange={onTime} ringColor={ringColor} />
+        </div>
       </div>
     </div>
   );
@@ -323,8 +375,8 @@ function PersonSection({
 
 export default function Home() {
   const [form, setForm] = useState<FormState>({
-    name1: "", birth1: "2000-01-01", blood1: "A", gender1: "女性",
-    name2: "", birth2: "2000-01-01", blood2: "A", gender2: "男性",
+    name1: "", birth1: "2000-01-01", time1: "", blood1: "A", gender1: "女性",
+    name2: "", birth2: "2000-01-01", time2: "", blood2: "A", gender2: "男性",
     category: "恋愛",
   });
   const [step, setStep] = useState<"form" | "result">("form");
@@ -420,6 +472,7 @@ export default function Home() {
                         ...f,
                         name1: r.name1, birth1: r.birth1, gender1: r.gender1, blood1: r.blood1,
                         name2: r.name2, birth2: r.birth2, gender2: r.gender2, blood2: r.blood2,
+                        time1: "", time2: "", // 履歴には時刻を保存していないためリセット
                         category: r.category as Category,
                       }));
                       setResult(parsed);
@@ -495,6 +548,7 @@ export default function Home() {
               gender={form.gender1} onGender={v => update("gender1", v)}
               blood={form.blood1} onBlood={v => update("blood1", v)}
               birth={form.birth1} onBirth={v => update("birth1", v)}
+              time={form.time1} onTime={v => update("time1", v)}
             />
 
             <div className="flex items-center gap-3">
@@ -510,6 +564,7 @@ export default function Home() {
               gender={form.gender2} onGender={v => update("gender2", v)}
               blood={form.blood2} onBlood={v => update("blood2", v)}
               birth={form.birth2} onBirth={v => update("birth2", v)}
+              time={form.time2} onTime={v => update("time2", v)}
             />
 
             {error && <p className="text-red-500 text-sm text-center">{error}</p>}

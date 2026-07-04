@@ -5,10 +5,43 @@ const STEMS = ["甲","乙","丙","丁","戊","己","庚","辛","壬","癸"];
 const BRANCHES = ["子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥"];
 const BRANCH_ANIMALS = ["ねずみ","うし","とら","うさぎ","たつ","へび","うま","ひつじ","さる","とり","いぬ","いのしし"];
 
-// 各月の節入り概算日テーブル（1〜12月, 精度±1日）
-// 立春=2/4, 啓蟄=3/6, 清明=4/5, 立夏=5/6, 芒種=6/6, 小暑=7/7
-// 立秋=8/7, 白露=9/8, 寒露=10/8, 立冬=11/7, 大雪=12/7, 小寒=1/6
-const SETSU_DAYS = [0, 6, 4, 6, 5, 6, 6, 7, 7, 8, 8, 7, 7];
+// ────────────────────────────────────────────
+// 天文計算ヘルパー：太陽黄経
+// 立春・節入り・星座境界は年ごとに日付が変動するため、
+// 固定日テーブルではなく太陽の視黄経（精度約0.01°≒時刻で15分）で判定する
+// ────────────────────────────────────────────
+const DEG = Math.PI / 180;
+
+// JST指定時刻のユリウス日
+function jdAtJst(y: number, m: number, d: number, hourJst: number): number {
+  return Date.UTC(y, m - 1, d, hourJst - 9) / 86400000 + 2440587.5;
+}
+
+// 太陽の視黄経（度, 0〜360）: Astronomical Almanac 低精度式
+function solarLongitude(jd: number): number {
+  const n = jd - 2451545.0;
+  const L = 280.460 + 0.9856474 * n;
+  const g = (357.528 + 0.9856003 * n) * DEG;
+  const lambda = L + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g);
+  return ((lambda % 360) + 360) % 360;
+}
+
+// 節入り・立春判定に使う太陽黄経
+// 時刻既知 → 出生時刻ちょうどの黄経で判定（最も正確）
+// 時刻不明 → 誕生日の終わり（24:00 JST）＝節入り当日生まれは「新しい月」とする標準的な運用
+function lambdaAtBirth(birth: Date, timeKnown: boolean): number {
+  const hour = timeKnown ? birth.getHours() + birth.getMinutes() / 60 : 24;
+  return solarLongitude(jdAtJst(birth.getFullYear(), birth.getMonth() + 1, birth.getDate(), hour));
+}
+
+// 立春（太陽黄経315°）基準の年（四柱推命・九星の年替わり判定）
+// 立春は年により2/3〜2/5で変動するため天文計算で判定する
+function risshunAdjustedYear(birth: Date, timeKnown = false): number {
+  let year = birth.getFullYear();
+  const m = birth.getMonth() + 1;
+  if (m <= 2 && lambdaAtBirth(birth, timeKnown) < 315) year--;
+  return year;
+}
 
 // ────────────────────────────────────────────
 // ヘルパー: 1桁またはマスターナンバー(11/22/33)になるまで繰り返し加算
@@ -22,35 +55,26 @@ function reduceNum(n: number): number {
 
 // ────────────────────────────────────────────
 // 西洋占星術：太陽星座
-// 境界日は現代(1970-2050年代)の実際の春分点に合わせて調整
-// （3/20から牡羊座：多くの年で春分点は3/20）
+// 固定日テーブルではなく誕生日正午（JST）の太陽黄経から判定
+// → 境界日（カスプ）も年ごとに正確（春分点0°=牡羊座起点、30°ごと）
 // ────────────────────────────────────────────
-export function getSunSign(birth: Date): string {
-  const m = birth.getMonth() + 1;
-  const d = birth.getDate();
-  if ((m === 3 && d >= 20) || (m === 4 && d <= 19)) return "牡羊座♈";  // 3/20〜4/19 (修正: 3/21→3/20)
-  if ((m === 4 && d >= 20) || (m === 5 && d <= 20)) return "牡牛座♉";
-  if ((m === 5 && d >= 21) || (m === 6 && d <= 20)) return "双子座♊";
-  if ((m === 6 && d >= 21) || (m === 7 && d <= 22)) return "蟹座♋";
-  if ((m === 7 && d >= 23) || (m === 8 && d <= 22)) return "獅子座♌";
-  if ((m === 8 && d >= 23) || (m === 9 && d <= 22)) return "乙女座♍";
-  if ((m === 9 && d >= 23) || (m === 10 && d <= 22)) return "天秤座♎";
-  if ((m === 10 && d >= 23) || (m === 11 && d <= 21)) return "蠍座♏";
-  if ((m === 11 && d >= 22) || (m === 12 && d <= 21)) return "射手座♐";
-  if ((m === 12 && d >= 22) || (m === 1 && d <= 19)) return "山羊座♑";
-  if ((m === 1 && d >= 20) || (m === 2 && d <= 18)) return "水瓶座♒";
-  return "魚座♓"; // 2/19〜3/19
+const SUN_SIGNS = [
+  "牡羊座♈","牡牛座♉","双子座♊","蟹座♋","獅子座♌","乙女座♍",
+  "天秤座♎","蠍座♏","射手座♐","山羊座♑","水瓶座♒","魚座♓",
+];
+export function getSunSign(birth: Date, timeKnown = false): string {
+  // 時刻不明時は正午と仮定（カスプ日の誤差を最小化）
+  const hour = timeKnown ? birth.getHours() + birth.getMinutes() / 60 : 12;
+  const lambda = solarLongitude(jdAtJst(birth.getFullYear(), birth.getMonth() + 1, birth.getDate(), hour));
+  return SUN_SIGNS[Math.floor(lambda / 30) % 12];
 }
 
 // ────────────────────────────────────────────
 // 九星気学：本命星
-// 節分（2月4日）前は前年扱い（検証済み・正確）
+// 立春（年により2/3〜2/5）前は前年扱い（天文計算で判定）
 // ────────────────────────────────────────────
-export function getKyusei(birth: Date): string {
-  let year = birth.getFullYear();
-  const m = birth.getMonth() + 1;
-  const d = birth.getDate();
-  if (m < 2 || (m === 2 && d < 4)) year--;
+export function getKyusei(birth: Date, timeKnown = false): string {
+  const year = risshunAdjustedYear(birth, timeKnown);
 
   // 年の各桁を一桁になるまで合算して本命星を算出
   let sum = year.toString().split("").reduce((a, c) => a + parseInt(c), 0);
@@ -67,13 +91,10 @@ export function getKyusei(birth: Date): string {
 
 // ────────────────────────────────────────────
 // 四柱推命：年柱（干支）
-// 節分（2/4）前は前年扱い（検証済み・正確）
+// 立春（年により2/3〜2/5）前は前年扱い（天文計算で判定）
 // ────────────────────────────────────────────
-export function getYearPillar(birth: Date): string {
-  let year = birth.getFullYear();
-  const m = birth.getMonth() + 1;
-  const d = birth.getDate();
-  if (m < 2 || (m === 2 && d < 4)) year--;
+export function getYearPillar(birth: Date, timeKnown = false): string {
+  const year = risshunAdjustedYear(birth, timeKnown);
 
   const stem = STEMS[((year - 4) % 10 + 10) % 10];
   const branchIdx = ((year - 4) % 12 + 12) % 12;
@@ -84,31 +105,51 @@ export function getYearPillar(birth: Date): string {
 
 // ────────────────────────────────────────────
 // 四柱推命：月柱（干支）
-// バグ修正: 天干・地支の計算式を正しく修正
+// 節入り（立春=315°を起点に太陽黄経30°ごと）で月を確定し、
+// 月干は五虎遁で算出：甲己年→丙寅、乙庚年→戊寅、丙辛年→庚寅、丁壬年→壬寅、戊癸年→甲寅
+// （旧実装は五虎遁の起点+2を欠いており全月干が2つズレていた）
 // ────────────────────────────────────────────
-export function getMonthPillar(birth: Date): string {
-  let year = birth.getFullYear();
-  let month = birth.getMonth() + 1; // 1-12
+export function getMonthPillar(birth: Date, timeKnown = false): string {
+  const lambda = lambdaAtBirth(birth, timeKnown);
+  const monthIdx = Math.floor(((((lambda - 315) % 360) + 360) % 360) / 30); // 0=寅月〜11=丑月
 
-  // 節入り日前は前月扱い
-  if (birth.getDate() < SETSU_DAYS[month]) {
-    month--;
-    if (month <= 0) { month = 12; year--; }
-  }
-
+  // 年干は立春基準の年を使う（1月〜立春前生まれは前年の年干）
+  const year = risshunAdjustedYear(birth, timeKnown);
   const yearStemIdx = ((year - 4) % 10 + 10) % 10;
-  // 寅月の天干起点 = (年干インデックス % 5) * 2
-  // 甲己年→甲(0), 乙庚年→丙(2), 丙辛年→戊(4), 丁壬年→庚(6), 戊癸年→壬(8)
-  const monthStemStart = (yearStemIdx % 5) * 2;
+  const monthStemIdx = ((yearStemIdx % 5) * 2 + 2 + monthIdx) % 10; // +2 が五虎遁の起点（丙）
+  const branchIdx = (monthIdx + 2) % 12; // 寅=2 起点
 
-  // 月支：子(0)を基点とした地支インデックス = month % 12
-  // 1月=丑(1), 2月=寅(2), ..., 11月=亥(11), 12月=子(0)
-  const branchIdxFromZi = month % 12;
-  // 寅月(index=2)からの相対ステップ数
-  const B = (branchIdxFromZi - 2 + 12) % 12;
-  const monthStemIdx = (monthStemStart + B) % 10;
+  return `${STEMS[monthStemIdx]}${BRANCHES[branchIdx]}`;
+}
 
-  return `${STEMS[monthStemIdx]}${BRANCHES[branchIdxFromZi]}`;
+// ────────────────────────────────────────────
+// 四柱推命：日柱（干支）— 四柱推命の中核「日主」
+// ユリウス通日から算出（60日周期・完全に決定的）
+// 検証アンカー: 1900-01-01=甲戌 / 2000-01-01=戊午 / 2024-01-01=甲子
+// ────────────────────────────────────────────
+function dayPillarIndex(birth: Date): number {
+  const days = Math.floor(Date.UTC(birth.getFullYear(), birth.getMonth(), birth.getDate()) / 86400000);
+  const jdn = days + 2440588; // 1970-01-01 = JDN 2440588
+  return ((jdn + 49) % 60 + 60) % 60; // 0 = 甲子
+}
+
+export function getDayPillar(birth: Date): string {
+  const idx = dayPillarIndex(birth);
+  return `${STEMS[idx % 10]}${BRANCHES[idx % 12]}`;
+}
+
+// ────────────────────────────────────────────
+// 四柱推命：時柱（干支）— 出生時刻が分かる場合のみ算出
+// 時支：子=23:00〜0:59 から2時間ごと
+// 時干：五鼠遁（甲己日→甲子、乙庚日→丙子、丙辛日→戊子、丁壬日→庚子、戊癸日→壬子）
+// ※日替わりは0時とし、23時台は当日の日干のまま子刻として扱う
+// ────────────────────────────────────────────
+export function getHourPillar(birth: Date): string {
+  const minutes = birth.getHours() * 60 + birth.getMinutes();
+  const hourBranchIdx = Math.floor((minutes + 60) / 120) % 12; // 子=0
+  const dayStemIdx = dayPillarIndex(birth) % 10;
+  const hourStemIdx = ((dayStemIdx % 5) * 2 + hourBranchIdx) % 10;
+  return `${STEMS[hourStemIdx]}${BRANCHES[hourBranchIdx]}`;
 }
 
 // ────────────────────────────────────────────
@@ -189,20 +230,34 @@ function sunSignScore(s1: string, s2: string): number {
   return 45; // 火-水 / 地-風 は相性困難
 }
 
-// ── 四柱推命：天干五行ベース ──
+// ── 四柱推命：日柱（日主）ベース ──
+// 本来の四柱推命の相性は年干ではなく「日干（日主）」で見る。
+// 天干: 干合 > 相生 > 比和 > 相剋 ／ 地支: 支合(六合)・三合で加点、冲で減点
 const STEM_ELEMENT: Record<string, string> = {
   "甲":"木","乙":"木","丙":"火","丁":"火","戊":"土",
   "己":"土","庚":"金","辛":"金","壬":"水","癸":"水",
 };
-function fourPillarsScore(yp1: string, yp2: string): number {
-  const e1 = STEM_ELEMENT[yp1[0]], e2 = STEM_ELEMENT[yp2[0]];
-  if (!e1 || !e2) return 65;
-  if (e1 === e2) return 75;
+function fourPillarsScore(dp1: string, dp2: string): number {
+  const s1 = STEMS.indexOf(dp1[0]), s2 = STEMS.indexOf(dp2[0]);
+  const e1 = STEM_ELEMENT[dp1[0]], e2 = STEM_ELEMENT[dp2[0]];
+  if (s1 < 0 || s2 < 0 || !e1 || !e2) return 65;
+
   const gen: Record<string,string> = {木:"火",火:"土",土:"金",金:"水",水:"木"};
-  if (gen[e1] === e2 || gen[e2] === e1) return 85; // 相生
-  const ovr: Record<string,string> = {木:"土",火:"金",土:"水",金:"木",水:"火"};
-  if (ovr[e1] === e2 || ovr[e2] === e1) return 45; // 相剋
-  return 65;
+  let score: number;
+  if ((s1 + 5) % 10 === s2 || (s2 + 5) % 10 === s1) score = 90; // 干合（甲己・乙庚・丙辛・丁壬・戊癸）
+  else if (gen[e1] === e2 || gen[e2] === e1) score = 80;        // 相生
+  else if (e1 === e2) score = 70;                                // 比和
+  else score = 52;                                               // 相剋
+
+  const b1 = BRANCHES.indexOf(dp1[1]), b2 = BRANCHES.indexOf(dp2[1]);
+  if (b1 >= 0 && b2 >= 0) {
+    const sum = b1 + b2;
+    if (sum === 13 || sum === 1) score += 8;             // 支合（六合）: 子丑・寅亥・卯戌・辰酉・巳申・午未
+    else if (b1 !== b2 && b1 % 4 === b2 % 4) score += 6; // 三合（申子辰・亥卯未・寅午戌・巳酉丑）
+    else if (b1 === b2) score += 4;                      // 同支
+    if (Math.abs(b1 - b2) === 6) score -= 12;            // 冲（対冲）
+  }
+  return Math.max(30, Math.min(98, score));
 }
 
 // ── 数秘術：ライフパス相性 ──
@@ -314,7 +369,7 @@ export function calcCompatibilityScores(
   name1: string, name2: string,
 ): CompatibilityScores {
   const sunSign    = sunSignScore(d1.sunSign, d2.sunSign);
-  const fourPillars= fourPillarsScore(d1.yearPillar, d2.yearPillar);
+  const fourPillars= fourPillarsScore(d1.dayPillar || d1.yearPillar, d2.dayPillar || d2.yearPillar);
   const lifePath   = lifePathScore(d1.lifePath, d2.lifePath);
   const tarot      = tarotScore(name1, name2);
   const kyusei     = kyuseiScore(d1.kyusei, d2.kyusei);
@@ -333,18 +388,24 @@ export interface FortuneData {
   kyusei: string;
   yearPillar: string;
   monthPillar: string;
+  dayPillar: string;
+  hourPillar: string | null; // 出生時刻が分かる場合のみ
   lifePath: number;
   soulNumber: number;
   destinyNumber: number;
   kabbalahNumber: number;
 }
 
-export function calcAll(birth: Date, name: string): FortuneData {
+// timeKnown=true の場合、birth の時・分を出生時刻として使用し、
+// 時柱の算出＋節入り・立春・星座カスプの時刻判定を行う
+export function calcAll(birth: Date, name: string, timeKnown = false): FortuneData {
   return {
-    sunSign: getSunSign(birth),
-    kyusei: getKyusei(birth),
-    yearPillar: getYearPillar(birth),
-    monthPillar: getMonthPillar(birth),
+    sunSign: getSunSign(birth, timeKnown),
+    kyusei: getKyusei(birth, timeKnown),
+    yearPillar: getYearPillar(birth, timeKnown),
+    monthPillar: getMonthPillar(birth, timeKnown),
+    dayPillar: getDayPillar(birth),
+    hourPillar: timeKnown ? getHourPillar(birth) : null,
     lifePath: getLifePathNumber(birth),
     soulNumber: getSoulNumber(name),
     destinyNumber: getDestinyNumber(birth),
