@@ -1,8 +1,29 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import Script from "next/script";
 import { Heart, Share2, RotateCcw, ChevronDown, ChevronUp, History, X } from "lucide-react";
 import { saveFortuneResult, type FortuneRecord } from "@/lib/supabase";
+
+// Stripe 公開鍵。設定されていれば「課金モード」、未設定なら従来の無料モード。
+const STRIPE_PK = process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY || "";
+const PAID_MODE = !!STRIPE_PK;
+const PRICE_LABEL = "500円";
+
+// Stripe.js のグローバル型（最小限）
+interface StripeCardElement { mount: (sel: string) => void; unmount?: () => void; }
+interface StripeElements { create: (type: string, opts?: unknown) => StripeCardElement; }
+interface StripeConfirmResult {
+  error?: { message: string };
+  paymentIntent?: { id: string; status: string };
+}
+interface StripeInstance {
+  elements: (opts?: unknown) => StripeElements;
+  confirmCardPayment: (clientSecret: string, data: unknown) => Promise<StripeConfirmResult>;
+}
+declare global {
+  interface Window { Stripe?: (key: string) => StripeInstance; }
+}
 
 // ── localStorage ベースの履歴管理（会員登録不要・端末ごとに保存）──
 const LS_KEY = "fortune_history_v1";
@@ -386,10 +407,29 @@ export default function Home() {
   const [history, setHistory] = useState<FortuneRecord[]>([]);
   const [showHistory, setShowHistory] = useState(false);
 
+  // ── Stripe（課金モード時のみ使用）──
+  const [stripeReady, setStripeReady] = useState(false);
+  const stripeRef = useRef<StripeInstance | null>(null);
+  const cardElRef = useRef<StripeCardElement | null>(null);
+
   // 履歴をlocalStorageから取得（端末ごと・会員登録不要）
   useEffect(() => {
     setHistory(lsLoad());
   }, []);
+
+  // Stripe.js 読込後、フォーム表示中はカード入力欄をマウント
+  useEffect(() => {
+    if (!PAID_MODE || !stripeReady || step !== "form") return;
+    if (typeof window === "undefined" || !window.Stripe) return;
+    if (!stripeRef.current) stripeRef.current = window.Stripe(STRIPE_PK);
+    // フォームに戻るたびに新しいDOMノードへ作り直す
+    const elements = stripeRef.current.elements();
+    cardElRef.current = elements.create("card", {
+      style: { base: { fontSize: "16px", color: "#1f2937", "::placeholder": { color: "#9ca3af" } } },
+    });
+    cardElRef.current.mount("#stripe-card-element");
+    return () => { cardElRef.current?.unmount?.(); cardElRef.current = null; };
+  }, [stripeReady, step]);
 
   const update = (k: keyof FormState, v: string) => setForm(p => ({ ...p, [k]: v }));
 
@@ -401,11 +441,36 @@ export default function Home() {
     setError("");
     setLoading(true);
     try {
-      const res = await fetch("/api/fortune", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
+      let res: Response;
+      if (PAID_MODE) {
+        // 1) PaymentIntent作成 → 2) カードで決済確定（3Dセキュアも自動対応）→ 3) 検証後に占い生成
+        if (!stripeRef.current || !cardElRef.current) {
+          throw new Error("決済フォームの準備中です。少し待ってからお試しください。");
+        }
+        const intentRes = await fetch("/api/pay/intent", { method: "POST" });
+        const intent = await intentRes.json();
+        if (!intentRes.ok) throw new Error(intent.error || "決済の初期化に失敗しました。");
+
+        const confirm = await stripeRef.current.confirmCardPayment(intent.clientSecret, {
+          payment_method: { card: cardElRef.current },
+        });
+        if (confirm.error) throw new Error(confirm.error.message || "カード情報をご確認ください。");
+        if (confirm.paymentIntent?.status !== "succeeded") {
+          throw new Error("決済が完了しませんでした。");
+        }
+
+        res = await fetch("/api/pay/fortune", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ paymentIntentId: intent.id, ...form }),
+        });
+      } else {
+        res = await fetch("/api/fortune", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        });
+      }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setResult(data);
@@ -442,6 +507,10 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50 flex items-start justify-center p-3 sm:p-4 sm:items-center">
+      {PAID_MODE && (
+        <Script src="https://js.stripe.com/v3/" strategy="afterInteractive"
+          onLoad={() => setStripeReady(true)} />
+      )}
       {loading && <CrystalBallLoader />}
 
       {/* 履歴モーダル */}
@@ -567,17 +636,40 @@ export default function Home() {
               time={form.time2} onTime={v => update("time2", v)}
             />
 
+            {/* カード入力欄（課金モード時のみ） */}
+            {PAID_MODE && (
+              <div>
+                <p className="text-xs text-gray-400 mb-1.5 pl-1 flex items-center gap-1">
+                  💳 お支払い（クレジットカード）
+                </p>
+                <div id="stripe-card-element"
+                  className="border border-gray-200 rounded-xl px-3 py-3.5 bg-white focus-within:ring-2 focus-within:ring-pink-300" />
+                <p className="text-[11px] text-gray-400 mt-1.5 pl-1 leading-relaxed">
+                  🔒 カード情報はStripeで安全に処理され、当サイトのサーバーには保存されません。
+                </p>
+              </div>
+            )}
+
             {error && <p className="text-red-500 text-sm text-center">{error}</p>}
 
-            <p className="text-xs text-gray-400 text-center">
-              ※ テスト版のため現在無料。正式版はPay.jpで500円の決済が入ります。
-            </p>
+            {!PAID_MODE && (
+              <p className="text-xs text-gray-400 text-center">
+                ※ テスト版のため現在無料。正式版はPay.jpで{PRICE_LABEL}の決済が入ります。
+              </p>
+            )}
 
             <button type="button" onClick={handleFortune} disabled={loading}
               style={{ WebkitTapHighlightColor: "transparent", fontSize: 18 }}
               className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-4 sm:py-5 rounded-2xl font-black hover:opacity-90 active:scale-95 transition-all shadow-lg disabled:opacity-50 flex items-center justify-center gap-2">
-              🔮 {form.category}相性を今すぐ診断する（500円）
+              {PAID_MODE
+                ? `🔮 ${PRICE_LABEL}を支払って${form.category}相性を診断する`
+                : `🔮 ${form.category}相性を今すぐ診断する（無料）`}
             </button>
+            {PAID_MODE && (
+              <p className="text-[11px] text-gray-400 text-center -mt-2">
+                ボタンを押すと{PRICE_LABEL}（税込）が決済されます。診断は1回ごとの買い切りです。
+              </p>
+            )}
           </div>
         )}
 
