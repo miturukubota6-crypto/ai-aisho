@@ -11,15 +11,18 @@ const PAID_MODE = !!STRIPE_PK;
 const PRICE_LABEL = "500円";
 
 // Stripe.js のグローバル型（最小限）
-interface StripeCardElement { mount: (sel: string) => void; unmount?: () => void; }
-interface StripeElements { create: (type: string, opts?: unknown) => StripeCardElement; }
+interface StripePaymentElement { mount: (sel: string) => void; unmount?: () => void; }
+interface StripeElements {
+  create: (type: string, opts?: unknown) => StripePaymentElement;
+  submit: () => Promise<{ error?: { message: string } }>;
+}
 interface StripeConfirmResult {
   error?: { message: string };
   paymentIntent?: { id: string; status: string };
 }
 interface StripeInstance {
   elements: (opts?: unknown) => StripeElements;
-  confirmCardPayment: (clientSecret: string, data: unknown) => Promise<StripeConfirmResult>;
+  confirmPayment: (opts: unknown) => Promise<StripeConfirmResult>;
 }
 declare global {
   interface Window { Stripe?: (key: string) => StripeInstance; }
@@ -410,25 +413,34 @@ export default function Home() {
   // ── Stripe（課金モード時のみ使用）──
   const [stripeReady, setStripeReady] = useState(false);
   const stripeRef = useRef<StripeInstance | null>(null);
-  const cardElRef = useRef<StripeCardElement | null>(null);
+  const elementsRef = useRef<StripeElements | null>(null);
+  const paymentElRef = useRef<StripePaymentElement | null>(null);
 
   // 履歴をlocalStorageから取得（端末ごと・会員登録不要）
   useEffect(() => {
     setHistory(lsLoad());
   }, []);
 
-  // Stripe.js 読込後、フォーム表示中はカード入力欄をマウント
+  // Stripe.js 読込後、フォーム表示中は Payment Element をマウント
+  // （カード入力＋Apple Pay / Google Pay を自動表示）
   useEffect(() => {
     if (!PAID_MODE || !stripeReady || step !== "form") return;
     if (typeof window === "undefined" || !window.Stripe) return;
     if (!stripeRef.current) stripeRef.current = window.Stripe(STRIPE_PK);
-    // フォームに戻るたびに新しいDOMノードへ作り直す
-    const elements = stripeRef.current.elements();
-    cardElRef.current = elements.create("card", {
-      style: { base: { fontSize: "16px", color: "#1f2937", "::placeholder": { color: "#9ca3af" } } },
+    // フォームに戻るたびに新しいDOMノードへ作り直す（金額を渡すとウォレットが有効化）
+    const elements = stripeRef.current.elements({
+      mode: "payment",
+      amount: 500,
+      currency: "jpy",
+      appearance: { theme: "stripe", variables: { colorPrimary: "#db2777", borderRadius: "12px" } },
     });
-    cardElRef.current.mount("#stripe-card-element");
-    return () => { cardElRef.current?.unmount?.(); cardElRef.current = null; };
+    elementsRef.current = elements;
+    paymentElRef.current = elements.create("payment", {
+      layout: "tabs",
+      wallets: { applePay: "auto", googlePay: "auto" },
+    });
+    paymentElRef.current.mount("#stripe-payment-element");
+    return () => { paymentElRef.current?.unmount?.(); paymentElRef.current = null; elementsRef.current = null; };
   }, [stripeReady, step]);
 
   const update = (k: keyof FormState, v: string) => setForm(p => ({ ...p, [k]: v }));
@@ -443,18 +455,24 @@ export default function Home() {
     try {
       let res: Response;
       if (PAID_MODE) {
-        // 1) PaymentIntent作成 → 2) カードで決済確定（3Dセキュアも自動対応）→ 3) 検証後に占い生成
-        if (!stripeRef.current || !cardElRef.current) {
+        // 1) 入力検証 → 2) PaymentIntent作成 → 3) 決済確定（カード/Apple Pay/Google Pay・3Dセキュア自動）→ 4) 検証後に占い生成
+        if (!stripeRef.current || !elementsRef.current) {
           throw new Error("決済フォームの準備中です。少し待ってからお試しください。");
         }
+        const { error: submitError } = await elementsRef.current.submit();
+        if (submitError) throw new Error(submitError.message || "入力内容をご確認ください。");
+
         const intentRes = await fetch("/api/pay/intent", { method: "POST" });
         const intent = await intentRes.json();
         if (!intentRes.ok) throw new Error(intent.error || "決済の初期化に失敗しました。");
 
-        const confirm = await stripeRef.current.confirmCardPayment(intent.clientSecret, {
-          payment_method: { card: cardElRef.current },
+        const confirm = await stripeRef.current.confirmPayment({
+          elements: elementsRef.current,
+          clientSecret: intent.clientSecret,
+          confirmParams: { return_url: window.location.href },
+          redirect: "if_required",
         });
-        if (confirm.error) throw new Error(confirm.error.message || "カード情報をご確認ください。");
+        if (confirm.error) throw new Error(confirm.error.message || "決済に失敗しました。カード情報をご確認ください。");
         if (confirm.paymentIntent?.status !== "succeeded") {
           throw new Error("決済が完了しませんでした。");
         }
@@ -636,16 +654,15 @@ export default function Home() {
               time={form.time2} onTime={v => update("time2", v)}
             />
 
-            {/* カード入力欄（課金モード時のみ） */}
+            {/* お支払い欄（課金モード時のみ。カード＋Apple Pay/Google Payを自動表示） */}
             {PAID_MODE && (
               <div>
                 <p className="text-xs text-gray-400 mb-1.5 pl-1 flex items-center gap-1">
-                  💳 お支払い（クレジットカード）
+                  💳 お支払い（カード・Apple Pay・Google Pay）
                 </p>
-                <div id="stripe-card-element"
-                  className="border border-gray-200 rounded-xl px-3 py-3.5 bg-white focus-within:ring-2 focus-within:ring-pink-300" />
+                <div id="stripe-payment-element" className="min-h-[44px]" />
                 <p className="text-[11px] text-gray-400 mt-1.5 pl-1 leading-relaxed">
-                  🔒 カード情報はStripeで安全に処理され、当サイトのサーバーには保存されません。
+                  🔒 決済情報はStripeで安全に処理され、当サイトのサーバーには保存されません。
                 </p>
               </div>
             )}
