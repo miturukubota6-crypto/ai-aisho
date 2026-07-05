@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateFortune, validateFortuneInput } from "@/lib/generateFortune";
 import { generateSoloFortune, validateSoloInput } from "@/lib/generateSoloFortune";
 
+// 占い生成に最大60秒かかるため関数のタイムアウトを延長（App Router標準の指定）
+export const maxDuration = 60;
+
 const STRIPE_API = "https://api.stripe.com/v1";
 const PRICE_JPY = 200;
 

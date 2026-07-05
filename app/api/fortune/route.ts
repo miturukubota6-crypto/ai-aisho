@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateFortune, validateFortuneInput } from "@/lib/generateFortune";
 import { generateSoloFortune, validateSoloInput } from "@/lib/generateSoloFortune";
 
+// 占い生成に最大60秒かかるため関数のタイムアウトを延長
+export const maxDuration = 60;
+
 // 無料・テスト用の占いエンドポイント。mode:"solo" で一人占い、それ以外は相性占い。
 // 決済モード（NEXT_PUBLIC_STRIPE_PUBLIC_KEY 設定時）はフロントが /api/pay/fortune を使う。
 export async function POST(req: NextRequest) {
