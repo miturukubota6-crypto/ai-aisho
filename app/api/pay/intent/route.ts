@@ -20,7 +20,9 @@ export async function POST(_req: NextRequest) {
       body: new URLSearchParams({
         amount: String(PRICE_JPY),
         currency: "jpy",
-        "payment_method_types[]": "card",
+        // Payment Element(自動)と一致させる。リダイレクト系は無効化しカード＋Apple Pay/Google Payに限定
+        "automatic_payment_methods[enabled]": "true",
+        "automatic_payment_methods[allow_redirects]": "never",
         description: "AI相性占い 8占術診断",
       }).toString(),
     });
