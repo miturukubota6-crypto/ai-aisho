@@ -15,6 +15,7 @@ function getClient(): SupabaseClient | null {
 export interface FortuneRecord {
   id?: string;
   created_at?: string;
+  mode?: "compat" | "solo"; // 未指定=相性占い（後方互換）。localStorage表示用
   name1: string;
   birth1: string;
   gender1: string;

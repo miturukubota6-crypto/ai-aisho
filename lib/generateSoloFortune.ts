@@ -22,6 +22,14 @@ export async function generateSoloFortune(input: SoloInput): Promise<SoloResult>
   const d = calcAll(birthDate, name, timeKnown);
   const sc = calcSoloScores(d);
 
+  // 今年・今月の運気（決定論的・その月の間は同じ結果）
+  const now = new Date();
+  const yy = now.getFullYear();
+  const mm = now.getMonth() + 1;
+  const clampP = (n: number) => Math.max(58, Math.min(95, n));
+  const yearLuck = clampP(58 + ((d.lifePath * 7 + d.kabbalahNumber * 13 + yy) % 38));
+  const monthLuck = clampP(58 + ((d.destinyNumber * 11 + d.kabbalahNumber * 5 + yy * 12 + mm * 29) % 38));
+
   const prompt = `あなたは日本一の占い師AIです。1人のお客様を8項目で鑑定します。
 【重要ルール】
 ・あなた自身で生年月日からの計算（星座・干支・九星・数秘など）は絶対にしない。以下の計算結果だけを使う。
@@ -42,6 +50,7 @@ export async function generateSoloFortune(input: SoloInput): Promise<SoloResult>
 
 【事前計算スコア（必ずこの数値を使用。変更禁止）】
 総合運:${sc.overall} / 性格:${sc.personality} / 仕事運:${sc.work} / 金運:${sc.money} / 恋愛運:${sc.love} / 結婚運:${sc.marriage} / 健康運:${sc.health}
+${yy}年の運気:${yearLuck} / ${mm}月の運気:${monthLuck}
 
 上記データを基に鑑定し、次のJSON形式のみで返してください（文字列内にマークダウンを使わない）:
 
@@ -49,6 +58,10 @@ export async function generateSoloFortune(input: SoloInput): Promise<SoloResult>
   "totalScore": ${sc.overall},
   "oneliner": "<この人を表すインパクトのある一言（20字以内）>",
   "profile": "<${name}さんの人物像・本質を鑑定データに基づき具体的に（100〜130字）>",
+  "timeLuck": {
+    "year":  { "label": "${yy}年の運気", "score": ${yearLuck},  "reading": "<${yy}年全体の運気の流れ・テーマ・チャンスと注意点（70〜100字）>" },
+    "month": { "label": "${mm}月の運気", "score": ${monthLuck}, "reading": "<今の${mm}月の運気・過ごし方のヒント（60〜90字）>" }
+  },
   "categories": [
     { "name": "総合運", "emoji": "🌟", "score": ${sc.overall}, "reading": "<総合的な運勢の流れ・強み（60〜90字）>" },
     { "name": "性格・気質", "emoji": "🧭", "score": ${sc.personality}, "reading": "<本質的な性格・気質・長所と短所（60〜90字）>" },

@@ -132,11 +132,18 @@ interface SoloCategory {
   aptitude?: string;
 }
 
+interface PeriodLuck {
+  label: string;
+  score: number;
+  reading: string;
+}
+
 interface SoloResultData {
   totalScore: number;
   score: number;
   oneliner: string;
   profile: string;
+  timeLuck?: { year: PeriodLuck; month: PeriodLuck };
   categories: SoloCategory[];
   luckyAdvice: string[];
   luckyItem?: string;
@@ -511,6 +518,30 @@ function SoloResult({ data, name, onReset, onShareX, onShareLine }: {
         </div>
       </div>
 
+      {/* いまの運気（今年・今月） */}
+      {data.timeLuck && (
+        <div className="bg-white rounded-3xl shadow-xl p-4 sm:p-5">
+          <h3 className="font-black text-gray-700 mb-3 text-sm">🗓 いまの運気</h3>
+          <div className="space-y-3">
+            {[data.timeLuck.year, data.timeLuck.month].filter(Boolean).map((p, i) => (
+              <div key={i} className="border border-indigo-100 rounded-2xl p-3.5 bg-gradient-to-br from-indigo-50/60 to-purple-50/50">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-lg flex-shrink-0">{i === 0 ? "📅" : "🌙"}</span>
+                  <span className="font-bold text-gray-700 text-sm flex-1">{p.label}</span>
+                  <span className="font-black text-base text-indigo-600 flex-shrink-0">
+                    {p.score}<span className="text-xs font-normal text-gray-400">点</span>
+                  </span>
+                </div>
+                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-2">
+                  <div className="h-full bg-gradient-to-r from-indigo-400 to-purple-500 rounded-full" style={{ width: `${p.score}%` }} />
+                </div>
+                <p className="text-xs text-gray-600 leading-relaxed">{p.reading}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* あなたという人 */}
       {data.profile && (
         <div className="bg-white rounded-3xl shadow-xl p-4 sm:p-5">
@@ -703,6 +734,21 @@ export default function Home() {
       if (!res.ok) throw new Error(data.error);
       setSoloResult(data);
       setStep("result");
+      // 履歴に保存（一人占い）
+      const record: FortuneRecord = {
+        mode: "solo",
+        name1: soloForm.name, birth1: soloForm.birth, gender1: soloForm.gender, blood1: soloForm.blood,
+        name2: "", birth2: "", gender2: "", blood2: "",
+        category: "一人占い",
+        score: data.score ?? data.totalScore ?? 0,
+        oneliner: data.oneliner ?? "",
+        result_json: JSON.stringify(data),
+        created_at: new Date().toISOString(),
+      };
+      lsSave(record);
+      setHistory(lsLoad());
+      const { mode: _m, ...supaRecord } = record; // Supabaseにはmode列が無い可能性があるため除外
+      saveFortuneResult(supaRecord).catch(() => {});
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "エラーが発生しました");
     } finally {
@@ -739,6 +785,7 @@ export default function Home() {
       setStep("result");
       // localStorageに保存
       const record: FortuneRecord = {
+        mode: "compat",
         name1: form.name1, birth1: form.birth1, gender1: form.gender1, blood1: form.blood1,
         name2: form.name2, birth2: form.birth2, gender2: form.gender2, blood2: form.blood2,
         category: form.category,
@@ -749,8 +796,9 @@ export default function Home() {
       };
       lsSave(record);
       setHistory(lsLoad());
-      // Supabaseにも保存（管理用・失敗しても続行）
-      saveFortuneResult(record).catch(() => {});
+      // Supabaseにも保存（管理用・失敗しても続行。mode列が無い可能性があるため除外）
+      const { mode: _m, ...supaRecord } = record;
+      saveFortuneResult(supaRecord).catch(() => {});
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "エラーが発生しました");
     } finally {
@@ -814,21 +862,27 @@ export default function Home() {
                     className="border border-gray-100 rounded-2xl px-4 py-3 flex items-center gap-3 hover:bg-gray-50 cursor-pointer"
                     onClick={() => {
                       const parsed = JSON.parse(r.result_json);
-                      setForm(f => ({
-                        ...f,
-                        name1: r.name1, birth1: r.birth1, gender1: r.gender1, blood1: r.blood1,
-                        name2: r.name2, birth2: r.birth2, gender2: r.gender2, blood2: r.blood2,
-                        time1: "", time2: "", // 履歴には時刻を保存していないためリセット
-                        category: r.category as Category,
-                      }));
-                      setResult(parsed);
-                      setAppMode("compat");
+                      if (r.mode === "solo") {
+                        setSoloForm({ name: r.name1, birth: r.birth1, gender: r.gender1, blood: r.blood1, time: "" });
+                        setSoloResult(parsed);
+                        setAppMode("solo");
+                      } else {
+                        setForm(f => ({
+                          ...f,
+                          name1: r.name1, birth1: r.birth1, gender1: r.gender1, blood1: r.blood1,
+                          name2: r.name2, birth2: r.birth2, gender2: r.gender2, blood2: r.blood2,
+                          time1: "", time2: "", // 履歴には時刻を保存していないためリセット
+                          category: r.category as Category,
+                        }));
+                        setResult(parsed);
+                        setAppMode("compat");
+                      }
                       setStep("result");
                       setShowHistory(false);
                     }}>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-gray-700 truncate">
-                        {r.name1} × {r.name2}
+                        {r.mode === "solo" ? `🔮 ${r.name1}` : `${r.name1} × ${r.name2}`}
                         <span className="ml-2 text-xs font-normal text-gray-400">{r.category}</span>
                       </p>
                       <p className="text-xs text-gray-400 mt-0.5">
