@@ -8,7 +8,7 @@ import { saveFortuneResult, type FortuneRecord } from "@/lib/supabase";
 // Stripe 公開鍵。設定されていれば「課金モード」、未設定なら従来の無料モード。
 const STRIPE_PK = process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY || "";
 const PAID_MODE = !!STRIPE_PK;
-const PRICE_LABEL = "500円";
+const PRICE_LABEL = "200円";
 
 // Stripe.js のグローバル型（最小限）
 interface StripePaymentElement { mount: (sel: string) => void; unmount?: () => void; }
@@ -430,7 +430,7 @@ export default function Home() {
     // フォームに戻るたびに新しいDOMノードへ作り直す（金額を渡すとウォレットが有効化）
     const elements = stripeRef.current.elements({
       mode: "payment",
-      amount: 500,
+      amount: 200,
       currency: "jpy",
       appearance: { theme: "stripe", variables: { colorPrimary: "#db2777", borderRadius: "12px" } },
     });
@@ -601,7 +601,7 @@ export default function Home() {
           <h1 className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">
             超！相性診断
           </h1>
-          <p className="text-gray-500 mt-1 text-xs sm:text-sm">Claude AIが8占術で本気診断｜1回500円</p>
+          <p className="text-gray-500 mt-1 text-xs sm:text-sm">Claude AIが8占術で本気診断｜1回200円</p>
           {/* カテゴリ表示 */}
           <div className="flex gap-1.5 justify-center mt-3 flex-wrap">
             {CATEGORIES.map(c => {

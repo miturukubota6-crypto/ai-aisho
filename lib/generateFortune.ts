@@ -231,7 +231,7 @@ export async function postToX(name1: string, name2: string, category: string, sc
 
   if (!apiKey || !apiSecret || !accessToken || !accessSecret) return;
 
-  const text = `🔮 たった500円でここまでわかる！\nAI相性占いで${category}相性を8占術で完全分析✨\n\n西洋占星術・四柱推命・タロット・数秘術など8つを同時診断→ ${process.env.NEXT_PUBLIC_BASE_URL}\n#AI相性占い #${category}占い #相性診断`;
+  const text = `🔮 たった200円でここまでわかる！\nAI相性占いで${category}相性を8占術で完全分析✨\n\n西洋占星術・四柱推命・タロット・数秘術など8つを同時診断→ ${process.env.NEXT_PUBLIC_BASE_URL}\n#AI相性占い #${category}占い #相性診断`;
 
   const { createHmac } = await import("crypto");
   const timestamp = Math.floor(Date.now() / 1000).toString();

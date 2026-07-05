@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const STRIPE_API = "https://api.stripe.com/v1";
-const PRICE_JPY = 500;
+const PRICE_JPY = 200;
 
 // Stripe PaymentIntent を作成し client_secret を返す（カード決済専用）
 export async function POST(_req: NextRequest) {

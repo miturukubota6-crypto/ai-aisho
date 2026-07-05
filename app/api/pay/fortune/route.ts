@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateFortune, validateFortuneInput } from "@/lib/generateFortune";
 
 const STRIPE_API = "https://api.stripe.com/v1";
-const PRICE_JPY = 500;
+const PRICE_JPY = 200;
 
 // 決済成功をサーバーで検証してから占いを生成（無銭診断・二重利用を防止）
 export async function POST(req: NextRequest) {
