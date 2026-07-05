@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateFortune, validateFortuneInput } from "@/lib/generateFortune";
+import { generateSoloFortune, validateSoloInput } from "@/lib/generateSoloFortune";
 
 const STRIPE_API = "https://api.stripe.com/v1";
 const PRICE_JPY = 200;
 
-// 決済成功をサーバーで検証してから占いを生成（無銭診断・二重利用を防止）
+// 決済成功をサーバーで検証してから占いを生成（無銭診断・二重利用を防止）。
+// mode:"solo" で一人占い、それ以外は相性占い。
 export async function POST(req: NextRequest) {
   try {
-    const { paymentIntentId, ...input } = await req.json();
+    const { paymentIntentId, mode, ...input } = await req.json();
 
-    const validationError = validateFortuneInput(input);
+    const validationError = mode === "solo" ? validateSoloInput(input) : validateFortuneInput(input);
     if (validationError) {
       return NextResponse.json({ error: validationError }, { status: 400 });
     }
@@ -42,7 +44,9 @@ export async function POST(req: NextRequest) {
     }
 
     // 占い生成
-    const result = await generateFortune(input);
+    const result = mode === "solo"
+      ? await generateSoloFortune(input)
+      : await generateFortune(input);
 
     // 決済を「利用済み」にマーク（ベストエフォート）
     await fetch(`${STRIPE_API}/payment_intents/${encodeURIComponent(paymentIntentId)}`, {

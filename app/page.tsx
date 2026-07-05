@@ -113,6 +113,36 @@ interface FormState {
   category: Category;
 }
 
+// ── 一人占い ──
+type AppMode = "compat" | "solo";
+
+interface SoloFormState {
+  name: string;
+  birth: string;
+  time: string;
+  blood: string;
+  gender: string;
+}
+
+interface SoloCategory {
+  name: string;
+  emoji: string;
+  score: number;
+  reading: string;
+  aptitude?: string;
+}
+
+interface SoloResultData {
+  totalScore: number;
+  score: number;
+  oneliner: string;
+  profile: string;
+  categories: SoloCategory[];
+  luckyAdvice: string[];
+  luckyItem?: string;
+  luckyColor?: string;
+}
+
 // ────────────────────────────────────────────
 // 生年月日セレクター（年・月・日を同時に選択）
 // ────────────────────────────────────────────
@@ -397,6 +427,175 @@ function PersonSection({
   );
 }
 
+// ────────────────────────────────────────────
+// 一人占い：入力フォーム
+// ────────────────────────────────────────────
+function SoloForm({ form, update, onSubmit, loading, error }: {
+  form: SoloFormState;
+  update: (k: keyof SoloFormState, v: string) => void;
+  onSubmit: () => void;
+  loading: boolean;
+  error: string;
+}) {
+  return (
+    <div className="bg-white rounded-3xl shadow-xl p-4 sm:p-6 space-y-5">
+      <PersonSection
+        title="あなたのこと" color="text-gray-700" ringColor="focus:ring-pink-300"
+        icon={<Heart size={15} className="text-pink-500 fill-pink-500" />}
+        name={form.name} onName={v => update("name", v)}
+        gender={form.gender} onGender={v => update("gender", v)}
+        blood={form.blood} onBlood={v => update("blood", v)}
+        birth={form.birth} onBirth={v => update("birth", v)}
+        time={form.time} onTime={v => update("time", v)}
+      />
+
+      {PAID_MODE && (
+        <div>
+          <p className="text-xs text-gray-400 mb-1.5 pl-1 flex items-center gap-1">
+            💳 お支払い（カード・Apple Pay・Google Pay）
+          </p>
+          <div id="stripe-payment-element" className="min-h-[44px]" />
+          <p className="text-[11px] text-gray-400 mt-1.5 pl-1 leading-relaxed">
+            🔒 決済情報はStripeで安全に処理され、当サイトのサーバーには保存されません。
+          </p>
+        </div>
+      )}
+
+      {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+
+      {!PAID_MODE && (
+        <p className="text-xs text-gray-400 text-center">
+          ※ テスト版のため現在無料。正式版はStripeで{PRICE_LABEL}の決済が入ります。
+        </p>
+      )}
+
+      <button type="button" onClick={onSubmit} disabled={loading}
+        style={{ WebkitTapHighlightColor: "transparent", fontSize: 18 }}
+        className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-4 sm:py-5 rounded-2xl font-black hover:opacity-90 active:scale-95 transition-all shadow-lg disabled:opacity-50 flex items-center justify-center gap-2">
+        {PAID_MODE ? `🔮 ${PRICE_LABEL}であなたを占う` : "🔮 あなたを占う（無料）"}
+      </button>
+      {PAID_MODE && (
+        <p className="text-[11px] text-gray-400 text-center -mt-2">
+          ボタンを押すと{PRICE_LABEL}（税込）が決済されます。診断は1回ごとの買い切りです。
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────
+// 一人占い：結果表示
+// ────────────────────────────────────────────
+function SoloResult({ data, name, onReset, onShareX, onShareLine }: {
+  data: SoloResultData;
+  name: string;
+  onReset: () => void;
+  onShareX: () => void;
+  onShareLine: () => void;
+}) {
+  const score = data.score ?? data.totalScore ?? 0;
+  return (
+    <div className="space-y-3 sm:space-y-4">
+      {/* 総合スコア */}
+      <div className="bg-white rounded-3xl shadow-xl p-5 sm:p-6">
+        <p className="text-gray-500 text-xs sm:text-sm text-center mb-1">{name}さんの運勢鑑定</p>
+        <div className="text-center">
+          <div className="text-6xl sm:text-7xl font-black bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">
+            {score}<span className="text-3xl sm:text-4xl">点</span>
+          </div>
+          <p className="mt-2 font-bold text-gray-700 text-sm sm:text-base leading-snug">{data.oneliner}</p>
+        </div>
+        <div className="mt-4 h-3 bg-gray-100 rounded-full overflow-hidden">
+          <div className="h-full bg-gradient-to-r from-pink-400 to-purple-500 rounded-full transition-all duration-700"
+            style={{ width: `${score}%` }} />
+        </div>
+      </div>
+
+      {/* あなたという人 */}
+      {data.profile && (
+        <div className="bg-white rounded-3xl shadow-xl p-4 sm:p-5">
+          <h3 className="font-black text-gray-700 mb-2 text-sm">🪞 あなたという人</h3>
+          <p className="text-sm text-gray-600 leading-relaxed bg-gradient-to-br from-pink-50 to-purple-50 rounded-2xl p-4">
+            {data.profile}
+          </p>
+        </div>
+      )}
+
+      {/* 8項目の鑑定 */}
+      <div className="bg-white rounded-3xl shadow-xl p-4 sm:p-5 space-y-3">
+        <h3 className="font-black text-gray-700 mb-1 text-sm">🔮 8項目の鑑定</h3>
+        {data.categories?.map((c, i) => (
+          <div key={i} className="border border-gray-100 rounded-2xl p-3.5 bg-gradient-to-br from-pink-50/40 to-purple-50/40">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="text-lg flex-shrink-0">{c.emoji}</span>
+              <span className="font-bold text-gray-700 text-sm flex-1">{c.name}</span>
+              <span className="font-black text-base text-pink-600 flex-shrink-0">
+                {c.score}<span className="text-xs font-normal text-gray-400">点</span>
+              </span>
+            </div>
+            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-2">
+              <div className="h-full bg-gradient-to-r from-pink-400 to-purple-500 rounded-full" style={{ width: `${c.score}%` }} />
+            </div>
+            <p className="text-xs text-gray-600 leading-relaxed">{c.reading}</p>
+            {c.aptitude && <p className="text-xs text-purple-600 mt-1.5 font-medium">💡 {c.aptitude}</p>}
+          </div>
+        ))}
+      </div>
+
+      {/* 開運アドバイス */}
+      <div className="bg-white rounded-3xl shadow-xl p-4 sm:p-5">
+        <h3 className="font-black text-gray-700 mb-2.5 text-sm">✨ 開運アドバイス</h3>
+        <div className="space-y-2">
+          {data.luckyAdvice?.map((a, i) => (
+            <div key={i} className="flex gap-2 items-start bg-green-50 rounded-xl px-3 py-2">
+              <span className="text-green-500 font-bold text-xs flex-shrink-0 mt-0.5">✓</span>
+              <p className="text-xs text-gray-700 leading-relaxed">{a}</p>
+            </div>
+          ))}
+        </div>
+        {(data.luckyItem || data.luckyColor) && (
+          <div className="flex gap-2 mt-3">
+            {data.luckyItem && (
+              <div className="flex-1 bg-pink-50 rounded-xl px-3 py-2 text-center">
+                <p className="text-[10px] text-gray-400">ラッキーアイテム</p>
+                <p className="text-xs font-bold text-gray-700">{data.luckyItem}</p>
+              </div>
+            )}
+            {data.luckyColor && (
+              <div className="flex-1 bg-purple-50 rounded-xl px-3 py-2 text-center">
+                <p className="text-[10px] text-gray-400">ラッキーカラー</p>
+                <p className="text-xs font-bold text-gray-700">{data.luckyColor}</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* シェア＋リセット */}
+      <div className="bg-white rounded-3xl shadow-xl p-4 sm:p-5">
+        <p className="text-xs text-gray-400 text-center mb-3">結果をシェアしよう！</p>
+        <div className="flex gap-2.5">
+          <button onClick={onShareX}
+            style={{ WebkitTapHighlightColor: "transparent" }}
+            className="flex-1 bg-black text-white py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 text-sm hover:opacity-80 active:scale-95 transition-all">
+            <Share2 size={15} />Xでシェア
+          </button>
+          <button onClick={onShareLine}
+            style={{ WebkitTapHighlightColor: "transparent" }}
+            className="flex-1 bg-green-500 text-white py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 text-sm hover:opacity-80 active:scale-95 transition-all">
+            LINEで送る
+          </button>
+        </div>
+        <button onClick={onReset}
+          style={{ WebkitTapHighlightColor: "transparent" }}
+          className="w-full mt-2.5 border border-gray-200 text-gray-600 py-3.5 rounded-2xl font-semibold flex items-center justify-center gap-2 text-sm hover:bg-gray-50 active:scale-95 transition-all">
+          <RotateCcw size={15} />もう一度占う
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const [form, setForm] = useState<FormState>({
     name1: "", birth1: "2000-01-01", time1: "", blood1: "A", gender1: "女性",
@@ -409,6 +608,13 @@ export default function Home() {
   const [error, setError] = useState("");
   const [history, setHistory] = useState<FortuneRecord[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+
+  // ── モード（相性占い / 一人占い）──
+  const [appMode, setAppMode] = useState<AppMode>("compat");
+  const [soloForm, setSoloForm] = useState<SoloFormState>({
+    name: "", birth: "2000-01-01", time: "", blood: "A", gender: "女性",
+  });
+  const [soloResult, setSoloResult] = useState<SoloResultData | null>(null);
 
   // ── Stripe（課金モード時のみ使用）──
   const [stripeReady, setStripeReady] = useState(false);
@@ -441,9 +647,68 @@ export default function Home() {
     });
     paymentElRef.current.mount("#stripe-payment-element");
     return () => { paymentElRef.current?.unmount?.(); paymentElRef.current = null; elementsRef.current = null; };
-  }, [stripeReady, step]);
+  }, [stripeReady, step, appMode]);
 
   const update = (k: keyof FormState, v: string) => setForm(p => ({ ...p, [k]: v }));
+  const soloUpdate = (k: keyof SoloFormState, v: string) => setSoloForm(p => ({ ...p, [k]: v }));
+
+  // 課金モード共通：決済を確定し paymentIntentId を返す（失敗時はthrow）
+  const payWithStripe = async (): Promise<string> => {
+    if (!stripeRef.current || !elementsRef.current) {
+      throw new Error("決済フォームの準備中です。少し待ってからお試しください。");
+    }
+    const { error: submitError } = await elementsRef.current.submit();
+    if (submitError) throw new Error(submitError.message || "入力内容をご確認ください。");
+
+    const intentRes = await fetch("/api/pay/intent", { method: "POST" });
+    const intent = await intentRes.json();
+    if (!intentRes.ok) throw new Error(intent.error || "決済の初期化に失敗しました。");
+
+    const confirm = await stripeRef.current.confirmPayment({
+      elements: elementsRef.current,
+      clientSecret: intent.clientSecret,
+      confirmParams: { return_url: window.location.href },
+      redirect: "if_required",
+    });
+    if (confirm.error) throw new Error(confirm.error.message || "決済に失敗しました。カード情報をご確認ください。");
+    if (confirm.paymentIntent?.status !== "succeeded") throw new Error("決済が完了しませんでした。");
+    return intent.id;
+  };
+
+  // 一人占い
+  const handleSolo = async () => {
+    if (!soloForm.name || !soloForm.birth) {
+      setError("必須項目を入力してください");
+      return;
+    }
+    setError("");
+    setLoading(true);
+    try {
+      let res: Response;
+      if (PAID_MODE) {
+        const paymentIntentId = await payWithStripe();
+        res = await fetch("/api/pay/fortune", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ paymentIntentId, mode: "solo", ...soloForm }),
+        });
+      } else {
+        res = await fetch("/api/fortune", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode: "solo", ...soloForm }),
+        });
+      }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setSoloResult(data);
+      setStep("result");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "エラーが発生しました");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleFortune = async () => {
     if (!form.name1 || !form.birth1 || !form.name2 || !form.birth2) {
@@ -455,32 +720,11 @@ export default function Home() {
     try {
       let res: Response;
       if (PAID_MODE) {
-        // 1) 入力検証 → 2) PaymentIntent作成 → 3) 決済確定（カード/Apple Pay/Google Pay・3Dセキュア自動）→ 4) 検証後に占い生成
-        if (!stripeRef.current || !elementsRef.current) {
-          throw new Error("決済フォームの準備中です。少し待ってからお試しください。");
-        }
-        const { error: submitError } = await elementsRef.current.submit();
-        if (submitError) throw new Error(submitError.message || "入力内容をご確認ください。");
-
-        const intentRes = await fetch("/api/pay/intent", { method: "POST" });
-        const intent = await intentRes.json();
-        if (!intentRes.ok) throw new Error(intent.error || "決済の初期化に失敗しました。");
-
-        const confirm = await stripeRef.current.confirmPayment({
-          elements: elementsRef.current,
-          clientSecret: intent.clientSecret,
-          confirmParams: { return_url: window.location.href },
-          redirect: "if_required",
-        });
-        if (confirm.error) throw new Error(confirm.error.message || "決済に失敗しました。カード情報をご確認ください。");
-        if (confirm.paymentIntent?.status !== "succeeded") {
-          throw new Error("決済が完了しませんでした。");
-        }
-
+        const paymentIntentId = await payWithStripe();
         res = await fetch("/api/pay/fortune", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ paymentIntentId: intent.id, ...form }),
+          body: JSON.stringify({ paymentIntentId, ...form }),
         });
       } else {
         res = await fetch("/api/fortune", {
@@ -523,6 +767,21 @@ export default function Home() {
     : "";
   const shareText = `🔮 ${form.category}相性診断の結果は${score}点！\n${result?.oneliner ?? ""}\n✨AIが8占術で本気診断`;
 
+  // モード切替（フォームに戻し、エラーをクリア）
+  const switchMode = (m: AppMode) => {
+    if (m === appMode) return;
+    setAppMode(m);
+    setStep("form");
+    setError("");
+  };
+
+  // 一人占いのシェア
+  const soloScore = soloResult?.score ?? soloResult?.totalScore ?? 0;
+  const soloOgUrl = typeof window !== "undefined"
+    ? `${window.location.origin}/og?score=${soloScore}&category=${encodeURIComponent("運勢")}&oneliner=${encodeURIComponent(soloResult?.oneliner ?? "")}`
+    : "";
+  const soloShareText = `🔮 私の運勢を占ったら総合${soloScore}点！\n${soloResult?.oneliner ?? ""}\n✨AIが8項目で本気鑑定`;
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50 flex items-start justify-center p-3 sm:p-4 sm:items-center">
       {PAID_MODE && (
@@ -563,6 +822,7 @@ export default function Home() {
                         category: r.category as Category,
                       }));
                       setResult(parsed);
+                      setAppMode("compat");
                       setStep("result");
                       setShowHistory(false);
                     }}>
@@ -599,34 +859,70 @@ export default function Home() {
           </div>
           <div className="text-5xl mb-2">🔮</div>
           <h1 className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">
-            超！相性診断
+            {appMode === "compat" ? "超！相性診断" : "一人占い"}
           </h1>
-          <p className="text-gray-500 mt-1 text-xs sm:text-sm">Claude AIが8占術で本気診断｜1回200円</p>
-          {/* カテゴリ表示 */}
-          <div className="flex gap-1.5 justify-center mt-3 flex-wrap">
-            {CATEGORIES.map(c => {
-              const label = c === "恋愛" ? "💕 恋愛" : c === "結婚" ? "💍 結婚" : c === "仕事" ? "💼 仕事" : "🔥 SEX";
-              const isSelected = form.category === c;
-              const isResult = step === "result";
-              // 結果画面では選択外を非表示
-              if (isResult && !isSelected) return null;
-              return (
-                <button key={c}
-                  onClick={() => !isResult && update("category", c)}
-                  style={{ WebkitTapHighlightColor: "transparent", cursor: isResult ? "default" : "pointer" }}
-                  className={`px-3 py-1.5 rounded-full text-sm font-bold transition-all ${
-                    isSelected
-                      ? "bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-lg"
-                      : "bg-white text-gray-400 border border-gray-200"
-                  } ${!isResult ? "hover:border-pink-300" : ""}`}>
-                  {label}
-                </button>
-              );
-            })}
+          <p className="text-gray-500 mt-1 text-xs sm:text-sm">
+            {appMode === "compat"
+              ? "Claude AIが8占術で本気診断｜1回200円"
+              : "Claude AIがあなたを8項目で鑑定｜1回200円"}
+          </p>
+
+          {/* モード切替（相性占い / 一人占い） */}
+          <div className="flex gap-1.5 justify-center mt-4">
+            {([["compat", "💞 相性占い"], ["solo", "🔮 一人占い"]] as [AppMode, string][]).map(([m, label]) => (
+              <button key={m} onClick={() => switchMode(m)}
+                style={{ WebkitTapHighlightColor: "transparent" }}
+                className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${
+                  appMode === m
+                    ? "bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-lg"
+                    : "bg-white text-gray-400 border border-gray-200 hover:border-pink-300"
+                }`}>
+                {label}
+              </button>
+            ))}
           </div>
+
+          {/* カテゴリ表示（相性占いのみ） */}
+          {appMode === "compat" && (
+            <div className="flex gap-1.5 justify-center mt-3 flex-wrap">
+              {CATEGORIES.map(c => {
+                const label = c === "恋愛" ? "💕 恋愛" : c === "結婚" ? "💍 結婚" : c === "仕事" ? "💼 仕事" : "🔥 SEX";
+                const isSelected = form.category === c;
+                const isResult = step === "result";
+                // 結果画面では選択外を非表示
+                if (isResult && !isSelected) return null;
+                return (
+                  <button key={c}
+                    onClick={() => !isResult && update("category", c)}
+                    style={{ WebkitTapHighlightColor: "transparent", cursor: isResult ? "default" : "pointer" }}
+                    className={`px-3 py-1.5 rounded-full text-sm font-bold transition-all ${
+                      isSelected
+                        ? "bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-lg"
+                        : "bg-white text-gray-400 border border-gray-200"
+                    } ${!isResult ? "hover:border-pink-300" : ""}`}>
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
-        {step === "form" && (
+        {appMode === "solo" && step === "form" && (
+          <SoloForm form={soloForm} update={soloUpdate} onSubmit={handleSolo} loading={loading} error={error} />
+        )}
+
+        {appMode === "solo" && step === "result" && soloResult && (
+          <SoloResult
+            data={soloResult}
+            name={soloForm.name}
+            onReset={() => { setStep("form"); setSoloResult(null); }}
+            onShareX={() => window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(soloShareText + "\n" + soloOgUrl)}`, "_blank")}
+            onShareLine={() => window.open(`https://line.me/R/msg/text/?${encodeURIComponent(soloShareText + "\n" + soloOgUrl)}`, "_blank")}
+          />
+        )}
+
+        {appMode === "compat" && step === "form" && (
           <div className="bg-white rounded-3xl shadow-xl p-4 sm:p-6 space-y-5">
             <PersonSection
               title="あなた" color="text-gray-700" ringColor="focus:ring-pink-300"
@@ -671,7 +967,7 @@ export default function Home() {
 
             {!PAID_MODE && (
               <p className="text-xs text-gray-400 text-center">
-                ※ テスト版のため現在無料。正式版はPay.jpで{PRICE_LABEL}の決済が入ります。
+                ※ テスト版のため現在無料。正式版はStripeで{PRICE_LABEL}の決済が入ります。
               </p>
             )}
 
@@ -690,7 +986,7 @@ export default function Home() {
           </div>
         )}
 
-        {step === "result" && result && (
+        {appMode === "compat" && step === "result" && result && (
           <div className="space-y-3 sm:space-y-4">
             {/* 総合スコアカード */}
             <div className="bg-white rounded-3xl shadow-xl p-5 sm:p-6">

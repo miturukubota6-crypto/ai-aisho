@@ -380,6 +380,44 @@ export function calcCompatibilityScores(
   return { sunSign, fourPillars, lifePath, tarot, kyusei, blood, nameReading, kabbalah, total };
 }
 
+// ════════════════════════════════════════════
+// 一人占い：カテゴリ別スコア（決定論的・同じ生年月日なら毎回同じ）
+// 命式（日主の五行・太陽星座の元素・九星・数秘・カバラ）から算出
+// ════════════════════════════════════════════
+export interface SoloScores {
+  overall: number;
+  personality: number;
+  work: number;
+  money: number;
+  love: number;
+  marriage: number;
+  health: number;
+}
+
+export function calcSoloScores(d: FortuneData): SoloScores {
+  const clamp = (n: number) => Math.max(55, Math.min(96, Math.round(n)));
+  const stemEl = STEM_ELEMENT[d.dayPillar[0]] || "土"; // 木火土金水
+  const sunEl = SIGN_ELEMENT[d.sunSign] || "火";        // 火地風水
+  const ky = KYUSEI_IDX[d.kyusei] || 5;
+  const lp = d.lifePath > 9 ? (d.lifePath % 9 || 9) : d.lifePath;
+  const kb = d.kabbalahNumber;
+  const ds = d.destinyNumber;
+  const stemBase: Record<string, number> = { 木: 80, 火: 84, 土: 76, 金: 82, 水: 78 };
+  const sunBase: Record<string, number> = { 火: 84, 地: 78, 風: 80, 水: 76 };
+  const sb = stemBase[stemEl] ?? 80;
+  const nb = sunBase[sunEl] ?? 80;
+
+  const personality = clamp(70 + (kb - 5) * 3 + (sb - 80) / 2);
+  const work        = clamp(70 + (lp - 5) * 3 + (ky - 5) * 2 + (stemEl === "金" || stemEl === "木" ? 5 : 0));
+  const money       = clamp(70 + (kb - 5) * 3 + (ds - 5) * 2 + (stemEl === "金" || stemEl === "水" ? 6 : 0));
+  const love        = clamp(72 + (ds - 5) * 3 + (nb - 80) / 2 + (lp % 3) * 2);
+  const marriage    = clamp(72 + (lp - 5) * 2 + (kb % 4) * 3 + (sunEl === "地" || sunEl === "水" ? 5 : 0));
+  const health      = clamp(74 + (ky - 5) * 2 + (sb - 80) / 2 + (ds % 3) * 2);
+  const overall     = clamp((personality + work + money + love + marriage + health) / 6);
+
+  return { overall, personality, work, money, love, marriage, health };
+}
+
 // ────────────────────────────────────────────
 // まとめて計算して返す
 // ────────────────────────────────────────────
